@@ -31,22 +31,30 @@ RC RecordBasedFileManager::getNullIndicatorSize(int fieldCount)
 
 RC RecordBasedFileManager::createFile(const string &fileName) 
 {
+    PagedFileManager pfm;
+    pfm.createFile(const string &fileName);
     return 0;
 }
 
 RC RecordBasedFileManager::destroyFile(const string &fileName) 
 {
+    PagedFileManager pfm;
+    pfm.destroyFile(const string &fileName);
     return 0;
 }
 
 RC RecordBasedFileManager::openFile(const string &fileName, 
     FileHandle &fileHandle) 
 {
+    PagedFileManager pfm;
+    pfm.openFile(const string &fileName, FileHandle &fileHandle);
     return 0;
 }
 
 RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) 
 {
+    PagedFileManager pfm;
+    pfm.closeFile(FileHandle &fileHandle);
     return 0;
 }
 
