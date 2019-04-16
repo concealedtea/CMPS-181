@@ -44,6 +44,18 @@ typedef enum { EQ_OP = 0, // no condition// =
 } CompOp;
 
 
+typedef struct SlotDirectoryHeader
+{
+    int freeSpaceOffset;
+    int recordEntriesNum;
+}SlotDirectoryHeader;
+
+typedef struct SlotDirectoryRecordEntry
+{
+    int length;
+    int offset;
+}SlotDirectoryRecordEntry;
+
 /********************************************************************************
 The scan iterator is NOT required to be implemented for the part 1 of the project 
 ********************************************************************************/

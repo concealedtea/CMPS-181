@@ -28,33 +28,32 @@ RC RecordBasedFileManager::getNullIndicatorSize(int fieldCount)
 {
 	return ceil((double) fieldCount / CHAR_BIT);
 }
-
 RC RecordBasedFileManager::createFile(const string &fileName) 
 {
-    PagedFileManager pfm;
-    pfm.createFile(const string &fileName);
+    PagedFileManager *pfm = PagedFileManager::instance();
+    pfm->createFile(fileName);
     return 0;
 }
 
 RC RecordBasedFileManager::destroyFile(const string &fileName) 
 {
-    PagedFileManager pfm;
-    pfm.destroyFile(const string &fileName);
+    PagedFileManager *pfm = PagedFileManager::instance();
+    pfm->destroyFile(fileName);
     return 0;
 }
 
 RC RecordBasedFileManager::openFile(const string &fileName, 
-    FileHandle &fileHandle) 
+                                    FileHandle &fileHandle) 
 {
-    PagedFileManager pfm;
-    pfm.openFile(const string &fileName, FileHandle &fileHandle);
+    PagedFileManager *pfm = PagedFileManager::instance();
+    pfm->openFile(fileName, fileHandle);
     return 0;
 }
 
 RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) 
 {
-    PagedFileManager pfm;
-    pfm.closeFile(FileHandle &fileHandle);
+    PagedFileManager *pfm = PagedFileManager::instance();
+    pfm->closeFile(fileHandle);
     return 0;
 }
 
@@ -76,31 +75,38 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     const void *data) 
 {
     int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    int offset = nullIndicatorSize;
+
     for (unsigned i = 0; i <= (unsigned) recordDescriptor.size(); i++)
     {
-        int offset = nullIndicatorSize;
         if (recordDescriptor[i].type == TypeInt)
         {
-            int record = 0;
+            int field = 0;
+            memcpy(&field, ((char*) data + offset), INT_SIZE);
             offset += INT_SIZE;
-            memcpy(&record, ((char*) data + offset), INT_SIZE);
-            cout << record << endl;
+            cout << field << endl;
         }
 
         if (recordDescriptor[i].type == TypeReal)
         {
-            int record = 0;
+            float field = 0;
+            memcpy(&field, ((char*) data + offset), REAL_SIZE);
             offset += REAL_SIZE;
-            memcpy(&record, ((char*) data + offset), REAL_SIZE);
-            cout << record << endl;
+            cout << field << endl;
         }
 
         if (recordDescriptor[i].type == TypeVarChar)
         {
-            int record = 0;
-            offset += INT_SIZE;
-            memcpy(&record, ((char*) data + offset), INT_SIZE);
-            cout << record << endl;
+            int varcharSize = 0;
+            memcpy(&varcharSize, ((char*) data + offset), VARCHAR_SIZE);
+            cout << "varcharSize is: " << varcharSize << endl;
+            offset += VARCHAR_SIZE;
+            
+            char *data_string = (char*) malloc(varcharSize + 1);
+            memcpy(data_string, ((char*) data + offset), varcharSize);
+            offset += varcharSize;
+            cout << data_string << endl;
+            free(data_string);
         }
     }    
     return 0;
