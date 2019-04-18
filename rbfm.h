@@ -46,14 +46,14 @@ typedef enum { EQ_OP = 0, // no condition// =
 
 typedef struct SlotDirectoryHeader
 {
-    int freeSpaceOffset;
-    int recordEntriesNum;
+    uint16_t freeSpaceOffset;
+    uint16_t recordEntriesNumber;
 }SlotDirectoryHeader;
 
 typedef struct SlotDirectoryRecordEntry
 {
-    int length;
-    int offset;
+    uint32_t length;
+    int32_t offset;
 }SlotDirectoryRecordEntry;
 
 /********************************************************************************
@@ -146,8 +146,21 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
             const void *value,                    // used in the comparison
             const vector<string> &attributeNames, // a list of projected attributes
             RBFM_ScanIterator &rbfm_ScanIterator);
+
     RC getNullIndicatorSize(int fieldCount);
 
+    int getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
+    
+    void setRecordAtOffset(void *page, unsigned offset, 
+                           const vector<Attribute> &recordDescriptor, const void *data);
+    
+    bool fieldIsNull(char *nullIndicator, int i);
+    
+    SlotDirectoryHeader getSlotDirectoryHeader(void * page);
+
+    unsigned getPageFreeSpaceSize(void * page);
+    void getRecordAtOffset(void *page, unsigned offset, 
+                           const vector<Attribute> &recordDescriptor, void *data);
 public:
 
 protected:
