@@ -1,0 +1,28 @@
+1. Basic information
+Team number:
+Student ID of submitter: 1450874
+Student Name of submitter: Matthew Tan 
+Other Team Members: Krishnan Nair, Pranav Nampoothiri
+
+
+2. Internal Record Format
+- Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that you haven't implemented this feature.
+ Our record format design is as shown on Slide 12 and 17 of lecture 3. The record has an inlining of null fields so that null flags and their corresponding fields
+ are next to each other. This is different from the given format that features all the null indicators at the beginning of the record. 
+- Describe how you store a VarChar field.
+  We used a macro to store the size of the varchar field since the first bit of the varchar is the size. 
+
+
+3. Page Format
+- Show your page format design
+ We desgined our page to have a slot directory at the end of the page with a slot directory header that contains the number of slot entries as well as the free space
+ available. Records are inserted at the top of the page wherever free space is available. This leaves any free space in the center of the page between records and the
+ slot directory. 
+
+4. Implementation Detail
+- Other implementation details goes here.
+ We made a struct for the slot directory record entries that contains the free space offset for each entry as well as the length of that entry. We also made a struct
+ for the header that keeps track of the free space in the page as well as the number of entries available. We used these in our insertRecord and readRecord functions. 
+
+
+
