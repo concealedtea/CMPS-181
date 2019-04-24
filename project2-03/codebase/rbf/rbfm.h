@@ -18,6 +18,7 @@
 #define RBFM_READ_FAILED   5
 #define RBFM_WRITE_FAILED  6
 #define RBFM_SLOT_DN_EXIST 7
+#define RBFM_RECORD_DN_EXIST 8
 
 using namespace std;
 
@@ -181,7 +182,7 @@ private:
   bool fieldIsNull(char *nullIndicator, int i);
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
-  void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
+  void getRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
 };
 
 #endif
