@@ -416,8 +416,7 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     return SUCCESS;
 }
 
-// TODO!!! Not sure how to get attribute using a string?
-/*
+// TODO!!!
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
     // Retrieve the specified page
     void * pageData = malloc(PAGE_SIZE);
@@ -442,18 +441,17 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
         RID forwardRid;
         forwardRid.pageNum = -1 * recordEntry.offset;
         forwardRid.slotNum = recordEntry.length;
-        readAttribute(fileHandle, recordDescriptor, forwardRid, attributeName data);
+        readAttribute(fileHandle, recordDescriptor, forwardRid, attributeName, data);
         free(pageData);
         return SUCCESS;
     }
     
     // Retrieve the actual entry data
-    // TODO!!!
+    getAttributeAtOffset(pageData, recordEntry.offset, recordDescriptor, attributeName, data);
     
     free(pageData);
     return SUCCESS;
 }
-*/
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
@@ -689,5 +687,65 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
         // Offset is relative to the start of the record and points to END of field
         memcpy(start + header_offset, &rec_offset, sizeof(ColumnOffset));
         header_offset += sizeof(ColumnOffset);
+    }
+}
+
+// Support header size and null indicator. If size is less than recordDescriptor size, then trailing records are null
+void RecordBasedFileManager::getAttributeAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const string &attributeName, void *data) {
+    // Pointer to start of record
+    char *start = (char*) page + offset;
+    
+    // Allocate space for null indicator.
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    char nullIndicator[nullIndicatorSize];
+    memset(nullIndicator, 0, nullIndicatorSize);
+    
+    // Get number of columns and size of the null indicator for this record
+    RecordLength len = 0;
+    memcpy (&len, start, sizeof(RecordLength));
+    int recordNullIndicatorSize = getNullIndicatorSize(len);
+    
+    // Read in the existing null indicator
+    memcpy (nullIndicator, start + sizeof(RecordLength), recordNullIndicatorSize);
+    
+    // If this new recordDescriptor has had fields added to it, we set all of the new fields to null
+    for (unsigned i = len; i < recordDescriptor.size(); i++)
+    {
+        int indicatorIndex = (i+1) / CHAR_BIT;
+        int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+        nullIndicator[indicatorIndex] |= indicatorMask;
+    }
+    
+    // Above is same as getRecordAtOffset
+    // Find index of desired attribute
+    unsigned index;
+    for (index = 0; index < recordDescriptor.size(); index++) {
+        if (attributeName == recordDescriptor[index].name)
+            break;
+    }
+    
+    if (fieldIsNull(nullIndicator, index)) {
+        // Set null indicator for data
+        memset(data, 0x80, 1);
+    }
+    else {
+        // Set null indicator for data
+        memset(data, 0x00, 1);
+        ColumnOffset leftOffset, rightOffset;
+        if (index == 0) {
+            leftOffset = sizeof(RecordLength) + recordNullIndicatorSize + len * sizeof(ColumnOffset);
+        }
+        else {
+            memcpy(&leftOffset, start + sizeof(RecordLength) + recordNullIndicatorSize + (index - 1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+        }
+        memcpy(&rightOffset, start + sizeof(RecordLength) + recordNullIndicatorSize + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
+        uint32_t fieldSize = rightOffset - leftOffset;
+        if (recordDescriptor[index].type == TypeVarChar) {
+            memcpy((char*) data + 1, &fieldSize, VARCHAR_LENGTH_SIZE);
+            memcpy((char*) data + 1 + VARCHAR_LENGTH_SIZE, start + leftOffset, fieldSize);
+        }
+        else {
+            memcpy((char*) data + 1, start + leftOffset, fieldSize);
+        }
     }
 }

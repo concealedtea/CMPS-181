@@ -183,6 +183,7 @@ private:
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
+  void getAttributeAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const string &attributeName, void *data);
 };
 
 #endif
