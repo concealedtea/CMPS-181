@@ -326,14 +326,9 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         forwardRid.pageNum = -1 * recordEntry.offset;
         forwardRid.slotNum = recordEntry.length;
         deleteRecord(fileHandle, recordDescriptor, forwardRid);
-        // Insert new record & set new forwarding address
-        RID newRid;
-        insertRecord(fileHandle, recordDescriptor, data, newRid);
-        recordEntry.offset = -1 * newRid.pageNum;
-        recordEntry.length = newRid.slotNum;
-        setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
-        free(pageData);
-        return SUCCESS;
+        // Set record entry so may be inserted into this page
+        recordEntry.length = 0;
+        recordEntry.offset = slotHeader.freeSpaceOffset;
     }
     
     // Get the old size and new size of the record.
@@ -375,36 +370,45 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         }
         else { // newRecordSize > oldRecordSize
             unsigned sizeDifference = newRecordSize - oldRecordSize;
-            // Loosen data
-            uint32_t compactableDataSize = oldOffset - slotHeader.freeSpaceOffset;
-            unsigned newFreeSpaceOffset = slotHeader.freeSpaceOffset - sizeDifference;
-            char *compactableData = (char*) malloc(compactableDataSize);
-            if (compactableData == NULL)
-                return RBFM_MALLOC_FAILED;
-            memcpy(compactableData, ((char*) pageData + slotHeader.freeSpaceOffset), compactableDataSize);
-            memcpy((char*) pageData + newFreeSpaceOffset, compactableData, compactableDataSize);
-            free(compactableData);
-            
-            // Write in new data
-            setRecordAtOffset (pageData, oldOffset - sizeDifference, recordDescriptor, data);
-            
-            // Update record entries
-            for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
-                recordEntry = getSlotDirectoryRecordEntry(pageData, i);
-                if (recordEntry.offset < oldOffset) {
-                    recordEntry.offset -= sizeDifference;
-                    setSlotDirectoryRecordEntry(pageData, i, recordEntry);
-                }
+            if (oldRecordSize == 0) { // forwarding address was used, so nothing in this page
+                setRecordAtOffset (pageData, oldOffset - sizeDifference, recordDescriptor, data);
+                recordEntry.offset = oldOffset - sizeDifference;
+                recordEntry.length = newRecordSize;
+                setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
             }
-            recordEntry.offset = oldOffset - sizeDifference;
-            recordEntry.length = newRecordSize;
-            setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
+            else { // no forwarding address used, so need to loosen data
+                // Loosen data
+                uint32_t compactableDataSize = oldOffset - slotHeader.freeSpaceOffset;
+                unsigned newFreeSpaceOffset = slotHeader.freeSpaceOffset - sizeDifference;
+                char *compactableData = (char*) malloc(compactableDataSize);
+                if (compactableData == NULL)
+                    return RBFM_MALLOC_FAILED;
+                memcpy(compactableData, ((char*) pageData + slotHeader.freeSpaceOffset), compactableDataSize);
+                memcpy((char*) pageData + newFreeSpaceOffset, compactableData, compactableDataSize);
+                free(compactableData);
+                
+                // Write in new data
+                setRecordAtOffset (pageData, oldOffset - sizeDifference, recordDescriptor, data);
+                
+                // Update record entries
+                for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
+                    recordEntry = getSlotDirectoryRecordEntry(pageData, i);
+                    if (recordEntry.offset < oldOffset) {
+                        recordEntry.offset -= sizeDifference;
+                        setSlotDirectoryRecordEntry(pageData, i, recordEntry);
+                    }
+                }
+                recordEntry.offset = oldOffset - sizeDifference;
+                recordEntry.length = newRecordSize;
+                setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
+            }
         }
     }
     else { // Not enough space for updated record
         RID newRid;
         insertRecord(fileHandle, recordDescriptor, data, newRid);
-        deleteRecord(fileHandle, recordDescriptor, rid);
+        if (oldRecordSize != 0) // a record exists to delete (did not have forwarding address before)
+            deleteRecord(fileHandle, recordDescriptor, rid);
         
         // Set forwarding address
         recordEntry.offset = -1 * newRid.pageNum;
@@ -416,7 +420,6 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     return SUCCESS;
 }
 
-// TODO!!!
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
     // Retrieve the specified page
     void * pageData = malloc(PAGE_SIZE);
