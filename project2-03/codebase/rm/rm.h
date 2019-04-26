@@ -10,6 +10,7 @@
 using namespace std;
 
 # define RM_EOF (-1)  // end of a scan operator
+#define RM_CREATE_CATALOG_FAILED 1
 
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
@@ -69,6 +70,12 @@ protected:
 
 private:
   static RelationManager *_rm;
+  static RecordBasedFileManager *_rbfm;
+  
+  void createTablesAttrs(vector<Attribute> &attrs);
+  void createColumnsAttrs(vector<Attribute> &attrs);
+  void prepareTablesRecord(const int tableId, const string &tableName, const string &fileName, void *data);
+  void prepareColumnsRecord(const int tableId, const string &columnName, const int columnType, const int columnLength, const int columnPosition, void *data);
 };
 
 #endif

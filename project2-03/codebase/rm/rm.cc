@@ -2,6 +2,7 @@
 #include "rm.h"
 
 RelationManager* RelationManager::_rm = 0;
+RecordBasedFileManager RelationManager::*_rbfm = NULL;
 
 RelationManager* RelationManager::instance()
 {
@@ -21,7 +22,29 @@ RelationManager::~RelationManager()
 
 RC RelationManager::createCatalog()
 {
-    return -1;
+    // Create files for catalog
+    RC tableRC = _rbfm->createFile("Tables.cata");
+    RC columnRC = _rbfm->createFile("Columns.cata");
+    if (tableRC != SUCCESS || columnRC != SUCCESS)
+        return RM_CREATE_CATALOG_FAILED;
+    
+    // Create record descriptors for Tables and Columns
+    vector<Attribute> tableAttr;
+    vector<Attribute> columnAttr;
+    createTablesAttrs(tableAttr);
+    createColumnsAttrs(columnAttr);
+    
+    // Insert records for Tables
+    FileHandle fh;
+    void* data = nullptr;
+    RID rid;
+    _rbfm->openFile("Tables.cata", fh);
+    prepareTablesRecord(1, "Tables", "Tables.cata", data);
+    _rbfm->insertRecord(fh, tableAttr, data, rid);
+    // Insert records for Columns
+    _rbfm->openFile("Columns.cata", fh);
+    
+    return SUCCESS;
 }
 
 RC RelationManager::deleteCatalog()
@@ -84,5 +107,58 @@ RC RelationManager::scan(const string &tableName,
     return -1;
 }
 
+void RelationManager::createTablesAttrs(vector<Attribute> &attrs) {
+    Attribute attr;
+    
+    attr.name = "table-id";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    attrs.push_back(attr);
+    
+    attr.name = "table-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    attrs.push_back(attr);
+    
+    attr.name = "file-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    attrs.push_back(attr);
+}
 
+void RelationManager::createColumnsAttrs(vector<Attribute> &attrs) {
+    Attribute attr;
+    
+    attr.name = "table-id";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    attrs.push_back(attr);
+    
+    attr.name = "column-name";
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)50;
+    attrs.push_back(attr);
+    
+    attr.name = "column-type";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    attrs.push_back(attr);
+    
+    attr.name = "column-length";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    attrs.push_back(attr);
+    
+    attr.name = "column-position";
+    attr.type = TypeInt;
+    attr.length = (AttrLength)4;
+    attrs.push_back(attr);
+}
 
+void prepareTablesRecord(const int tableId, const string &tableName, const string &fileName, void *data) {
+    
+}
+
+void prepareColumnsRecord(const int tableId, const string &columnName, const int columnType, const int columnLength, const int columnPosition, void *data) {
+    
+}
