@@ -85,7 +85,10 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 //  }
 //  rbfmScanIterator.close();
 
+class RecordBasedFileManager;
+
 class RBFM_ScanIterator {
+    friend class RecordBasedFileManager;
 public:
   RBFM_ScanIterator() {};
   ~RBFM_ScanIterator() {};
@@ -93,8 +96,27 @@ public:
   // Never keep the results in the memory. When getNextRecord() is called, 
   // a satisfying record needs to be fetched from the file.
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
-  RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
-  RC close() { return -1; };
+  RC getNextRecord(RID &rid, void *data);
+  RC close();
+private:
+    FileHandle *fileHandle;
+    vector<Attribute> recordDescriptor;
+    uint16_t conditionAttributeIndex;
+    CompOp compOp;
+    void *value;
+    vector<uint16_t> attributeIndices;
+    void *page;
+    int currPage;
+    uint16_t nextSlot;
+    uint16_t numSlots;
+    bool compareValue(const int val1);
+    bool compareValue(const float val1);
+    bool compareValue(const string val1);
+    
+    int getNullIndicatorSize(int fieldCount);
+    bool fieldIsNull(char *nullIndicator, int i);
+    SlotDirectoryHeader getSlotDirectoryHeader(void * page);\
+    SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
 };
 
 
