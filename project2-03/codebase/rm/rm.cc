@@ -273,7 +273,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     }
 
     void *value = &id;
-
+    
     RBFM_ScanIterator rbfm_si;
     vector<string> projection;
     projection.push_back(COLUMNS_COL_COLUMN_NAME);
@@ -598,12 +598,12 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
 
     vector<string> projection;
     projection.push_back("table-id");
-
-    void *value = malloc(4 + TABLES_COL_TABLE_NAME_SIZE);
+    
+    // Copy tableName into value
     int32_t name_len = tableName.length();
-    memcpy(value, &name_len, INT_SIZE);
-    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
-
+    void *value = malloc(name_len);
+    memcpy(value, tableName.c_str(), name_len);
+    
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
                    EQ_OP, value, projection, rbfm_si) != 0)
@@ -642,10 +642,10 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     vector<string> projection;
     projection.push_back("system");
 
-    void *value = malloc(5 + TABLES_COL_TABLE_NAME_SIZE);
+    // Copy tableName into value
     int32_t name_len = tableName.length();
-    memcpy(value, &name_len, INT_SIZE);
-    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
+    void *value = malloc(name_len);
+    memcpy(value, tableName.c_str(), name_len);
 
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
