@@ -19,49 +19,49 @@ RelationManager* RelationManager::instance()
 RelationManager::RelationManager()
 {
     Attribute attr;
-    attr.name = TABLES_COL_TABLE_ID;
+    attr.name = "table-id";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     tableDescriptor.push_back(attr);
 
-    attr.name = TABLES_COL_TABLE_NAME;
+    attr.name = "table-name";
     attr.type = TypeVarChar;
-    attr.length = (AttrLength)TABLES_COL_TABLE_NAME_SIZE;
+    attr.length = (AttrLength)50;
     tableDescriptor.push_back(attr);
 
-    attr.name = TABLES_COL_FILE_NAME;
+    attr.name = "file-name";
     attr.type = TypeVarChar;
-    attr.length = (AttrLength)TABLES_COL_FILE_NAME_SIZE;
+    attr.length = (AttrLength)50;
     tableDescriptor.push_back(attr);
 
     attr.name = "system";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     tableDescriptor.push_back(attr);
 
-    attr.name = COLUMNS_COL_TABLE_ID;
+    attr.name = "table-id";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnDescriptor.push_back(attr);
 
-    attr.name = COLUMNS_COL_COLUMN_NAME;
+    attr.name = "column-name";
     attr.type = TypeVarChar;
-    attr.length = (AttrLength)COLUMNS_COL_COLUMN_NAME_SIZE;
+    attr.length = (AttrLength)50;
     columnDescriptor.push_back(attr);
 
-    attr.name = COLUMNS_COL_COLUMN_TYPE;
+    attr.name = "column-type";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnDescriptor.push_back(attr);
 
-    attr.name = COLUMNS_COL_COLUMN_LENGTH;
+    attr.name = "column-length";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnDescriptor.push_back(attr);
 
-    attr.name = COLUMNS_COL_COLUMN_POSITION;
+    attr.name = "column-position";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnDescriptor.push_back(attr);
 }
 
@@ -142,7 +142,7 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 
     vector<string> projection;
     projection.push_back("table-id");
-    
+
     RBFM_ScanIterator rbfm_si;
     if(rbfm->scan(fileHandle, tableDescriptor, "table-id", 
                   NO_OP, NULL, projection, rbfm_si) != 0) 
@@ -167,7 +167,7 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
     id = max_table_id + 1;
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
-    
+
     if (insertTable(id, 0, tableName) != 0)
     {
         return -1;
@@ -280,13 +280,13 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     }
 
     void *value = &id;
-    
+
     RBFM_ScanIterator rbfm_si;
     vector<string> projection;
-    projection.push_back(COLUMNS_COL_COLUMN_NAME);
-    projection.push_back(COLUMNS_COL_COLUMN_TYPE);
-    projection.push_back(COLUMNS_COL_COLUMN_LENGTH);
-    projection.push_back(COLUMNS_COL_COLUMN_POSITION);
+    projection.push_back("column-name");
+    projection.push_back("column-type");
+    projection.push_back("column-length");
+    projection.push_back("column-position");
 
     if (rbfm->scan(fileHandle, columnDescriptor, "table-id", 
                    EQ_OP, value, projection, rbfm_si) != 0)
@@ -296,7 +296,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     }
 
     RID rid;
-    void *data = malloc(COLUMNS_RECORD_DATA_SIZE);
+    void *data = malloc(COLUMNS_ATTR_SIZE);
     vector<IndexedAttr> iattrs;
 
     while (rbfm_si.getNextRecord(rid, data) == 0)
@@ -491,12 +491,14 @@ RC RelationManager::readAttribute(const string &tableName, const RID &rid, const
         rbfm->closeFile(fileHandle);
         return -1;
     }
+
     vector<Attribute> recordDescriptor;
     if (getAttributes(tableName, recordDescriptor) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
     }
+
     if (rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeName, data) != 0)
     {
         rbfm->closeFile(fileHandle);
@@ -516,7 +518,7 @@ RC RelationManager::insertColumns(int32_t id, const vector<Attribute> &recordDes
         return -1;
     }
 
-    void *columnData = malloc(COLUMNS_RECORD_DATA_SIZE);
+    void *columnData = malloc(COLUMNS_ATTR_SIZE);
     RID rid;
     for (unsigned i = 0; i < recordDescriptor.size(); i++)
     {
@@ -566,14 +568,14 @@ RC RelationManager::insertTable(int32_t id, int32_t system, const string &tableN
     //cout << "insertTable: tableName is: " << tableName << endl;
     //cout << "insertTable: system is: " << system << endl;
     FileHandle fileHandle;
-    RC rc;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
 
-    rc = rbfm->openFile("Tables.tbl", fileHandle);
-    if (rc)
-        return rc;
+    if (rbfm->openFile("Tables.tbl", fileHandle) != 0)
+    {
+        return -1;
+    }
 
-    void *data = malloc (TABLES_RECORD_DATA_SIZE);
+    void *data = malloc (TABLES_ATTR_SIZE);
 
     uint8_t nullBytes = 0;
     unsigned offset = 0;
@@ -599,11 +601,11 @@ RC RelationManager::insertTable(int32_t id, int32_t system, const string &tableN
     memcpy((char*) data + offset, &system, INT_SIZE);
 
     RID rid;
-    rc = rbfm->insertRecord(fileHandle, tableDescriptor, data, rid);
+    rbfm->insertRecord(fileHandle, tableDescriptor, data, rid);
 
     rbfm->closeFile(fileHandle);
     free (data);
-    return rc;
+    return 0;
 }
 
 RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
@@ -618,10 +620,15 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
 
     vector<string> projection;
     projection.push_back("table-id");
-    
+
+    void *value = malloc(4 + 50);
+    int32_t name_len = tableName.length();
+    memcpy(value, &name_len, INT_SIZE);
+    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
+
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
+                   EQ_OP, value, projection, rbfm_si) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -637,7 +644,9 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
         memcpy(&tid, (char*) data + 1, INT_SIZE);
         tableID = tid;
     }
+
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
@@ -656,9 +665,14 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     vector<string> projection;
     projection.push_back("system");
 
+    void *value = malloc(1 + 4 + 50);
+    int32_t name_len = tableName.length();
+    memcpy(value, &name_len, INT_SIZE);
+    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
+
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
+                   EQ_OP, value, projection, rbfm_si) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -674,6 +688,7 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     }
 
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
