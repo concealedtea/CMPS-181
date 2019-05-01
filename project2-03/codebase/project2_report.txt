@@ -1,7 +1,7 @@
 1. Basic information
-Team Number : 
-Student ID# of Submitter:
-Name of Submitter: 
+Team Number : 3
+Student ID# of Submitter: 1509070
+Name of Submitter: Hon Yu Ho
 ID#s and Names for others on the Team
 
 
@@ -11,13 +11,31 @@ ID#s and Names for others on the Team
 
 3. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that your team hasn't implemented this feature.
+First, 4 bytes store the number of fields in the record.
+Second, the null indicator which takes ceil(#attributes/8.0) bytes.
+Third, Record Directory:
+4 bytes for each attribute for the right offset of each field.
+(Left offset of first field would just be the end of the directory)
+Fourth, the actual data in sequential order (nothing stored if null)
+Integer and Real are 4 bytes,
+
 - Describe how you store a VarChar field.
+VarChar is a variable number of bytes (length is found by using rightOffset - leftOffset)
+
 - Describe how you deal with an update and delete.
+Delete: records with offsets closer to the middle are moved over the deleted record
+Update: records with offsets closer to the middle are moved to make room for bigger record, or compact if smaller record
 
 
 4. Page Format
 - Show your page format design.
+At start of the page is 2 bytes for an offset to the start of free space.
+Next 2 bytes is for the number of slots.
+Next is the slot directory, 8 bytes for each record (4 for offset to record in page, 4 for length of record)
+
 - Describe how you deal with an update and delete.
+Delete: record entry in slot directory is set to 0,0
+Update: record entry set with new offset, or with forwarding address
 
 
 5. File Format
@@ -28,8 +46,15 @@ ID#s and Names for others on the Team
 6. Implementation Detail
 - Other implementation details goes here.  For example:  
 - Describe your use of Forwarding Addresses, including what happens when a Forwarding Address needs to be forwarded to yet another page.
+When forwarding, offset will store the page number as a negative number, and length will store the slot number.
+Functions will check for negative offsets to determine if using forwarding address.
+Update will delete the record at the forwarded address, then act as if updating an empty record in the page.
+
 - Describe how a scan is done, touching each record once even when there are Forwarding Addresses.
+Scan goes through the slot directory, skipping entries with offsets <= 0 (offset < 0 is forwarding address; offset = 0 is deleted record)
+
 - Describe how you determine that a previously slot on a page is empty (after record is deleted), so that the slot can be re-used for another record.  (Yes, a record's rid is supposed to be permanent, but only while the record exists.)
+When inserting, check the slot directory for a record entry set to 0,0. If found, then use that slot.
 
 
 7. Other (optional)
