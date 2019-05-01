@@ -606,7 +606,6 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
 
     RID rid;
     void *data = malloc (1 + INT_SIZE);
-cout << "get " << tableID << endl;
     if (rbfm_si.getNextRecord(rid, data) == 0)
     {
         int32_t tid;
@@ -615,7 +614,6 @@ cout << "get " << tableID << endl;
         memcpy(&tid, (char*) data + 1, INT_SIZE);
         tableID = tid;
     }
-cout << "get " << tableID << endl;
     free(data);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
