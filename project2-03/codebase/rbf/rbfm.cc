@@ -263,6 +263,8 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
         recordEntry.offset = 0;
         recordEntry.length = 0;
         setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
+        if (fileHandle.writePage(rid.pageNum, pageData))
+            return RBFM_WRITE_FAILED;
         free(pageData);
         return SUCCESS;
     }
@@ -284,7 +286,8 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     // Update slot directory record entries with offsets closer to middle
     for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
         recordEntry = getSlotDirectoryRecordEntry(pageData, i);
-        if (recordEntry.offset < oldOffset) {
+        // recordEntry.offset > 0, don't want to update deleted records
+        if (recordEntry.offset > 0 && recordEntry.offset < oldOffset) {
             recordEntry.offset += deletedDataSize;
             setSlotDirectoryRecordEntry(pageData, i, recordEntry);
         }
@@ -299,6 +302,8 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     slotHeader.freeSpaceOffset = newFreeSpaceOffset;
     setSlotDirectoryHeader(pageData, slotHeader);
     
+    if (fileHandle.writePage(rid.pageNum, pageData))
+        return RBFM_WRITE_FAILED;
     free(pageData);
     return SUCCESS;
 }
@@ -359,7 +364,7 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
             // Update record entries
             for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
                 recordEntry = getSlotDirectoryRecordEntry(pageData, i);
-                if (recordEntry.offset < oldOffset) {
+                if (recordEntry.offset > 0 && recordEntry.offset < oldOffset) {
                     recordEntry.offset += sizeDifference;
                     setSlotDirectoryRecordEntry(pageData, i, recordEntry);
                 }
@@ -393,7 +398,7 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
                 // Update record entries
                 for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
                     recordEntry = getSlotDirectoryRecordEntry(pageData, i);
-                    if (recordEntry.offset < oldOffset) {
+                    if (recordEntry.offset > 0 && recordEntry.offset < oldOffset) {
                         recordEntry.offset -= sizeDifference;
                         setSlotDirectoryRecordEntry(pageData, i, recordEntry);
                     }
@@ -416,6 +421,8 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
     }
     
+    if (fileHandle.writePage(rid.pageNum, pageData))
+        return RBFM_WRITE_FAILED;
     free(pageData);
     return SUCCESS;
 }
