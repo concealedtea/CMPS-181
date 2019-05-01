@@ -201,7 +201,7 @@ RC RelationManager::deleteTable(const string &tableName)
     if (isSystem)
     {
         rbfm->closeFile(fileHandle);
-          return -1;
+        return -1;
     }
 
     if (rbfm->destroyFile(tableName + ".tbl") != 0)
@@ -621,14 +621,9 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     vector<string> projection;
     projection.push_back("table-id");
 
-    void *value = malloc(4 + 50);
-    int32_t name_len = tableName.length();
-    memcpy(value, &name_len, INT_SIZE);
-    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
-
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, value, projection, rbfm_si) != 0)
+                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -646,7 +641,6 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     }
 
     free(data);
-    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
@@ -665,14 +659,9 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     vector<string> projection;
     projection.push_back("system");
 
-    void *value = malloc(1 + 4 + 50);
-    int32_t name_len = tableName.length();
-    memcpy(value, &name_len, INT_SIZE);
-    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
-
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, value, projection, rbfm_si) != 0)
+                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -688,7 +677,6 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     }
 
     free(data);
-    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
