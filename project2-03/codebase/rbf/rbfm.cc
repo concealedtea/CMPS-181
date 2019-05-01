@@ -146,15 +146,19 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     // Checks if the specific slot id exists in the page
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
     
-    if(slotHeader.recordEntriesNumber < rid.slotNum)
+    if(slotHeader.recordEntriesNumber < rid.slotNum) {
+        free(pageData);
         return RBFM_SLOT_DN_EXIST;
+    }
 
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
     
     // Check that the slot is not empty
-    if (recordEntry.offset == 0)
+    if (recordEntry.offset == 0) {
+        free(pageData);
         return RBFM_RECORD_DN_EXIST;
+    }
     
     // Check if using forwarding address
     if (recordEntry.offset < 0) {
@@ -244,13 +248,17 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     
     // Checks if the specific slot id exists in the page
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
-    if(slotHeader.recordEntriesNumber < rid.slotNum)
+    if(slotHeader.recordEntriesNumber < rid.slotNum) {
+        free(pageData);
         return RBFM_SLOT_DN_EXIST;
+    }
     
     // Check that the slot is not empty
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
-    if (recordEntry.offset == 0)
+    if (recordEntry.offset == 0) {
+        free(pageData);
         return RBFM_RECORD_DN_EXIST;
+    }
     
     // Check if using forwarding address
     if (recordEntry.offset < 0) {
@@ -317,13 +325,17 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     
     // Checks if the specific slot id exists in the page
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
-    if(slotHeader.recordEntriesNumber < rid.slotNum)
+    if(slotHeader.recordEntriesNumber < rid.slotNum) {
+        free(pageData);
         return RBFM_SLOT_DN_EXIST;
+    }
     
     // Check that the slot is not empty
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
-    if (recordEntry.offset == 0)
+    if (recordEntry.offset == 0) {
+        free(pageData);
         return RBFM_RECORD_DN_EXIST;
+    }
     // Check if using forwarding address
     if (recordEntry.offset < 0) {
         // Delete old record
@@ -438,15 +450,19 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     // Checks if the specific slot id exists in the page
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
     
-    if(slotHeader.recordEntriesNumber < rid.slotNum)
+    if(slotHeader.recordEntriesNumber < rid.slotNum) {
+        free(pageData);
         return RBFM_SLOT_DN_EXIST;
+    }
     
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
     
     // Check that the slot is not empty
-    if (recordEntry.offset == 0)
+    if (recordEntry.offset == 0) {
+        free(pageData);
         return RBFM_RECORD_DN_EXIST;
+    }
     
     // Check if using forwarding address
     if (recordEntry.offset < 0) {
