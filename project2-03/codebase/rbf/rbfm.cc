@@ -100,7 +100,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     SlotDirectoryRecordEntry recordEntry;
     for (unsigned j = 0; j < slotHeader.recordEntriesNumber; j++) {
         recordEntry = getSlotDirectoryRecordEntry(pageData, j);
-        if (recordEntry.length == 0) {
+        if (recordEntry.offset == 0 && recordEntry.length == 0) {
             rid.slotNum = j;
             slotHeader.recordEntriesNumber -= 1; // so don't have to change later code
             break;
@@ -165,7 +165,7 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
         free(pageData);
         return SUCCESS;
     }
-
+    
     // Retrieve the actual entry data
     getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
 
@@ -263,6 +263,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
         recordEntry.offset = 0;
         recordEntry.length = 0;
         setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
+        
         if (fileHandle.writePage(rid.pageNum, pageData))
             return RBFM_WRITE_FAILED;
         free(pageData);
@@ -271,7 +272,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     
     // Get length of deleted data
     uint32_t deletedDataSize = recordEntry.length;
-    unsigned oldOffset = recordEntry.offset;
+    int32_t oldOffset = recordEntry.offset;
     
     // Delete the data by moving data over the deleted record.
     uint32_t compactableDataSize = oldOffset - slotHeader.freeSpaceOffset;
@@ -286,7 +287,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     // Update slot directory record entries with offsets closer to middle
     for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
         recordEntry = getSlotDirectoryRecordEntry(pageData, i);
-        // recordEntry.offset > 0, don't want to update deleted records
+        // recordEntry.offset > 0, don't want to update deleted or forwarded records
         if (recordEntry.offset > 0 && recordEntry.offset < oldOffset) {
             recordEntry.offset += deletedDataSize;
             setSlotDirectoryRecordEntry(pageData, i, recordEntry);
@@ -297,7 +298,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     recordEntry.offset = 0;
     recordEntry.length = 0;
     setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
-        
+    
     // Updating the slot directory header.
     slotHeader.freeSpaceOffset = newFreeSpaceOffset;
     setSlotDirectoryHeader(pageData, slotHeader);
@@ -323,7 +324,6 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
     if (recordEntry.offset == 0)
         return RBFM_RECORD_DN_EXIST;
-    
     // Check if using forwarding address
     if (recordEntry.offset < 0) {
         // Delete old record
@@ -339,8 +339,8 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     // Get the old size and new size of the record.
     unsigned oldRecordSize = recordEntry.length;
     unsigned newRecordSize = getRecordSize(recordDescriptor, data);
-    unsigned oldOffset = recordEntry.offset;
-    
+    int32_t oldOffset = recordEntry.offset;
+    unsigned newFreeSpaceOffset = slotHeader.freeSpaceOffset;
     // Check if enough space for updated record
     if (getPageFreeSpaceSize(pageData) + oldRecordSize >= newRecordSize) {
         if (newRecordSize == oldRecordSize) { // only need to overwrite record
@@ -348,9 +348,9 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         }
         else if (newRecordSize < oldRecordSize) {
             unsigned sizeDifference = oldRecordSize - newRecordSize;
+            newFreeSpaceOffset += sizeDifference;
             // Compact data
             uint32_t compactableDataSize = oldOffset - slotHeader.freeSpaceOffset;
-            unsigned newFreeSpaceOffset = slotHeader.freeSpaceOffset + sizeDifference;
             char *compactableData = (char*) malloc(compactableDataSize);
             if (compactableData == NULL)
                 return RBFM_MALLOC_FAILED;
@@ -375,26 +375,21 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         }
         else { // newRecordSize > oldRecordSize
             unsigned sizeDifference = newRecordSize - oldRecordSize;
+            newFreeSpaceOffset -= sizeDifference;
             if (oldRecordSize == 0) { // forwarding address was used, so nothing in this page
                 setRecordAtOffset (pageData, oldOffset - sizeDifference, recordDescriptor, data);
-                recordEntry.offset = oldOffset - sizeDifference;
-                recordEntry.length = newRecordSize;
-                setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
             }
             else { // no forwarding address used, so need to loosen data
                 // Loosen data
                 uint32_t compactableDataSize = oldOffset - slotHeader.freeSpaceOffset;
-                unsigned newFreeSpaceOffset = slotHeader.freeSpaceOffset - sizeDifference;
                 char *compactableData = (char*) malloc(compactableDataSize);
                 if (compactableData == NULL)
                     return RBFM_MALLOC_FAILED;
                 memcpy(compactableData, ((char*) pageData + slotHeader.freeSpaceOffset), compactableDataSize);
                 memcpy((char*) pageData + newFreeSpaceOffset, compactableData, compactableDataSize);
                 free(compactableData);
-                
                 // Write in new data
                 setRecordAtOffset (pageData, oldOffset - sizeDifference, recordDescriptor, data);
-                
                 // Update record entries
                 for (unsigned i = 0; i < slotHeader.recordEntriesNumber; i++) {
                     recordEntry = getSlotDirectoryRecordEntry(pageData, i);
@@ -403,18 +398,25 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
                         setSlotDirectoryRecordEntry(pageData, i, recordEntry);
                     }
                 }
-                recordEntry.offset = oldOffset - sizeDifference;
-                recordEntry.length = newRecordSize;
-                setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
             }
+            recordEntry.offset = oldOffset - sizeDifference;
+            recordEntry.length = newRecordSize;
+            setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
         }
+        // Updating the slot directory header.
+        slotHeader.freeSpaceOffset = newFreeSpaceOffset;
+        setSlotDirectoryHeader(pageData, slotHeader);
     }
     else { // Not enough space for updated record
         RID newRid;
         insertRecord(fileHandle, recordDescriptor, data, newRid);
-        if (oldRecordSize != 0) // a record exists to delete (did not have forwarding address before)
+        if (oldRecordSize != 0) { // a record exists to delete (did not have forwarding address before)
             deleteRecord(fileHandle, recordDescriptor, rid);
-        
+            free(pageData);
+            pageData = malloc(PAGE_SIZE);
+            if (fileHandle.readPage(rid.pageNum, pageData))
+                return RBFM_READ_FAILED;
+        }
         // Set forwarding address
         recordEntry.offset = -1 * newRid.pageNum;
         recordEntry.length = newRid.slotNum;
@@ -645,6 +647,7 @@ bool RBFM_ScanIterator::compareValue(const int val1) {
         case NE_OP: return (val1 != val2);
         case NO_OP: return true;
     }
+    return true;
 }
 
 bool RBFM_ScanIterator::compareValue(const float val1) {
@@ -658,6 +661,7 @@ bool RBFM_ScanIterator::compareValue(const float val1) {
         case NE_OP: return (val1 != val2);
         case NO_OP: return true;
     }
+    return true;
 }
 
 bool RBFM_ScanIterator::compareValue(const string val1) {
@@ -671,6 +675,7 @@ bool RBFM_ScanIterator::compareValue(const string val1) {
         case NE_OP: return (val1 != val2);
         case NO_OP: return true;
     }
+    return true;
 }
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
@@ -935,7 +940,6 @@ void RecordBasedFileManager::getAttributeAtOffset(void *page, unsigned offset, c
         int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
         nullIndicator[indicatorIndex] |= indicatorMask;
     }
-    
     // Above is same as getRecordAtOffset
     // Find index of desired attribute
     unsigned index;
@@ -943,7 +947,6 @@ void RecordBasedFileManager::getAttributeAtOffset(void *page, unsigned offset, c
         if (attributeName == recordDescriptor[index].name)
             break;
     }
-    
     if (fieldIsNull(nullIndicator, index)) {
         // Set null indicator for data
         memset(data, 0x80, 1);
