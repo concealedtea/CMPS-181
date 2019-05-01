@@ -142,7 +142,7 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 
     vector<string> projection;
     projection.push_back("table-id");
-
+    
     RBFM_ScanIterator rbfm_si;
     if(rbfm->scan(fileHandle, tableDescriptor, "table-id", 
                   NO_OP, NULL, projection, rbfm_si) != 0) 
@@ -167,7 +167,7 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
     id = max_table_id + 1;
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
-
+    
     if (insertTable(id, 0, tableName) != 0)
     {
         return -1;
@@ -473,13 +473,11 @@ RC RelationManager::readAttribute(const string &tableName, const RID &rid, const
     {
         return -1;
     }
-
     vector<Attribute> recordDescriptor;
     if (getAttributes(tableName, recordDescriptor) != 0)
     {
         return -1;
     }
-
     if (rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeName, data) != 0)
     {
         return -1;
@@ -599,20 +597,16 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     vector<string> projection;
     projection.push_back("table-id");
     
-    // Copy tableName into value
-    int32_t name_len = tableName.length();
-    void *value = malloc(name_len);
-    memcpy(value, tableName.c_str(), name_len);
-    
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, value, projection, rbfm_si) != 0)
+                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
     {
         return -1;
     }
 
     RID rid;
     void *data = malloc (1 + INT_SIZE);
+cout << "get " << tableID << endl;
     if (rbfm_si.getNextRecord(rid, data) == 0)
     {
         int32_t tid;
@@ -621,9 +615,8 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
         memcpy(&tid, (char*) data + 1, INT_SIZE);
         tableID = tid;
     }
-
+cout << "get " << tableID << endl;
     free(data);
-    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
@@ -642,14 +635,9 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     vector<string> projection;
     projection.push_back("system");
 
-    // Copy tableName into value
-    int32_t name_len = tableName.length();
-    void *value = malloc(name_len);
-    memcpy(value, tableName.c_str(), name_len);
-
     RBFM_ScanIterator rbfm_si;
     if (rbfm->scan(fileHandle, tableDescriptor, "table-name", 
-                   EQ_OP, value, projection, rbfm_si) != 0)
+                   EQ_OP, tableName.c_str(), projection, rbfm_si) != 0)
     {
         return -1;
     }
@@ -664,7 +652,6 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     }
 
     free(data);
-    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
