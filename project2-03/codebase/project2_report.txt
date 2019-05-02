@@ -1,5 +1,5 @@
 1. Basic information
-Team Number : 3
+Team Number: 3
 Student ID# of Submitter: 1450874
 Name of Submitter: Matthew Tan
 ID#s and Names for others on the Team:
@@ -10,7 +10,17 @@ Name: Hon Yu Ho
 - Show your metadata design (Tables and Columns table) and information about each column.
 Tables table has four columns: table-id, table-name, file-name, and system.
 Tables table:
-table-id -- 
+table-id -- int variable for identifying the table id
+table-name -- string variable for identifying the table name (limited to 50 characters)
+file-name -- string variable for identifying which file the record resides in (limited to 50 characters)
+system -- int variable for identifying whether a table is a system table or not
+
+Columns table:
+table-id -- int variable for identifying table id
+column-name -- string variable for identifying column name (limited to 50 characters)
+column-type -- int variable for identifying the column type
+column-length -- int variable for identifying the length of the column
+column-position -- int variable for identifying the column position (which column the tuple is in)
 
 3. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that your team hasn't implemented this feature.
