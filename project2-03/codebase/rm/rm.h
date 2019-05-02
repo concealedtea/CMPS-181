@@ -75,19 +75,19 @@ protected:
     ~RelationManager();
 
 private:
-    typedef struct IndexedAttr
+    typedef struct Columns
     {
         int32_t pos;
         Attribute attr;
-        bool operator < (const IndexedAttr& t) const
+        bool operator < (const Columns& t) const
         {
             return (pos < t.pos);
         }
-    } IndexedAttr;
+    } Columns;
 
     static RelationManager *_rm;
-    vector<Attribute> tableDescriptor;
-    vector<Attribute> columnDescriptor;
+    vector<Attribute> _tableAttrs;
+    vector<Attribute> _columnAttrs;
 
 
     RC insertColumns(int32_t id, const vector<Attribute> &recordDescriptor);
@@ -96,7 +96,7 @@ private:
 
     RC getTableID(const string &tableName, int32_t &tableID);
 
-    RC isSystemTable(bool &system, const string &tableName);
+    RC tableSystem(bool &system, const string &tableName);
 
 };
 
