@@ -1,9 +1,10 @@
 1. Basic information
 Team Number : 3
-Student ID# of Submitter: 1509070
-Name of Submitter: Hon Yu Ho
-ID#s and Names for others on the Team
-
+Student ID# of Submitter: 1450874
+Name of Submitter: Matthew Tan
+ID#s and Names for others on the Team:
+ID: 1509070
+Name: Hon Yu Ho
 
 2. Metadata
 - Show your metadata design (Tables and Columns table) and information about each column.
