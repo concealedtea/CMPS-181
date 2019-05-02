@@ -53,12 +53,12 @@ RC RelationManager::createCatalog()
         return -1;
     }
 
-    if (insertTable(2, 1, "Columns") != 0)
+    if (insertColumns(1, _tableAttrs) != 0)
     {
         return -1;
     }
 
-    if (insertColumns(1, _tableAttrs) != 0)
+    if (insertTable(2, 1, "Columns") != 0)
     {
         return -1;
     }
