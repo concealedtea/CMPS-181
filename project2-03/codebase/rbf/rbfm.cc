@@ -680,7 +680,8 @@ bool RBFM_ScanIterator::compareValue(const float val1) {
     return true;
 }
 
-bool RBFM_ScanIterator::compareValue(const string val1) {int32_t valueSize;
+bool RBFM_ScanIterator::compareValue(const string val1) {
+    int32_t valueSize;
     memcpy(&valueSize, value, VARCHAR_LENGTH_SIZE);
     char valueChar[valueSize + 1];
     memcpy(valueChar, (char*) value + VARCHAR_LENGTH_SIZE, valueSize);
