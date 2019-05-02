@@ -646,6 +646,7 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     }
 
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
@@ -687,6 +688,7 @@ RC RelationManager::isSystemTable(bool &isSystem, const string &tableName)
     }
 
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return 0;
