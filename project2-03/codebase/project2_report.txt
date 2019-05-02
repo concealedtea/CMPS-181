@@ -53,7 +53,8 @@ Update: record entry set with new offset, or with forwarding address
 
 5. File Format
 - Show your file format design.
-
+All the files that were created end with ".tbl". Two catalog files are called Tables.tbl and Columns.tbl. The Tables.tbl and Columns.tbl
+are all 4K size. The non-system tables are of varying sizes. These files are all in binary form. The files are created using createFile() from pfm.cc written in Project1.
 
 
 6. Implementation Detail
