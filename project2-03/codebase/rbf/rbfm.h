@@ -39,6 +39,13 @@ struct Attribute {
     string   name;     // attribute name
     AttrType type;     // attribute type
     AttrLength length; // attribute length
+    Attribute() = default;
+    Attribute(const string n, const AttrType t, const AttrLength l)
+    {
+        name = n;
+        type = t;
+        length = l;
+    }
 };
 
 // Comparison Operator (NOT needed for part 1 of the project)
