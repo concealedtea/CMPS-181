@@ -75,15 +75,15 @@ protected:
     ~RelationManager();
 
 private:
-    typedef struct Columns
+    typedef struct ColumnAttrs
     {
         int32_t pos;
         Attribute attr;
-        bool operator < (const Columns& t) const
+        bool operator < (const ColumnAttrs& t) const
         {
             return (pos < t.pos);
         }
-    } Columns;
+    } ColumnAttrs;
 
     static RelationManager *_rm;
     vector<Attribute> _tableAttrs;
