@@ -8,7 +8,9 @@ Name: Hon Yu Ho
 
 2. Metadata
 - Show your metadata design (Tables and Columns table) and information about each column.
-
+Tables table has four columns: table-id, table-name, file-name, and system.
+Tables table:
+table-id -- 
 
 3. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that your team hasn't implemented this feature.
