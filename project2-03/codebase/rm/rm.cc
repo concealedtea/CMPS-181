@@ -582,10 +582,15 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
 
     vector<string> columns;
     columns.push_back("table-id");
+    
+    void *value = malloc(4 + 50);
+    int32_t name_len = tableName.length();
+    memcpy(value, &name_len, INT_SIZE);
+    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
 
     RBFM_ScanIterator iter;
     if (rbfm->scan(fileHandle, _tableAttrs, "table-name", 
-                   EQ_OP, tableName.c_str(), columns, iter) != 0)
+                   EQ_OP, value, columns, iter) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -603,6 +608,7 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     }
 
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     iter.close();
     return 0;
@@ -620,10 +626,15 @@ RC RelationManager::tableSystem(bool &system, const string &tableName)
 
     vector<string> columns;
     columns.push_back("system");
+    
+    void *value = malloc(4 + 50);
+    int32_t name_len = tableName.length();
+    memcpy(value, &name_len, INT_SIZE);
+    memcpy((char*)value + INT_SIZE, tableName.c_str(), name_len);
 
     RBFM_ScanIterator iter;
     if (rbfm->scan(fileHandle, _tableAttrs, "table-name", 
-                   EQ_OP, tableName.c_str(), columns, iter) != 0)
+                   EQ_OP, value, columns, iter) != 0)
     {
         rbfm->closeFile(fileHandle);
         return -1;
@@ -639,6 +650,7 @@ RC RelationManager::tableSystem(bool &system, const string &tableName)
     }
 
     free(data);
+    free(value);
     rbfm->closeFile(fileHandle);
     iter.close();
     return 0;
