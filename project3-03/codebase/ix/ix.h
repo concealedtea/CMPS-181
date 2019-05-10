@@ -8,6 +8,15 @@
 
 # define IX_EOF (-1)  // end of the index scan
 
+#define IX_CREATE_FAILED  1
+#define IX_MALLOC_FAILED  2
+#define IX_OPEN_FAILED    3
+#define IX_DESTROY_FAILED 4
+#define IX_APPEND_FAILED  5
+#define IX_CLOSE_FAILED   6
+#define IX_READ_FAILED    7
+#define IX_WRITE_FAILED   8
+
 class IX_ScanIterator;
 class IXFileHandle;
 
@@ -86,10 +95,20 @@ class IXFileHandle {
 
     // Destructor
     ~IXFileHandle();
+    
+    RC readPage(PageNum pageNum, void *data);           // Get a specific page
+    RC writePage(PageNum pageNum, const void *data);    // Write a specific page
+    RC appendPage(const void *data);                    // Append a specific page
+    unsigned getNumberOfPages();                        // Get the number of pages in the file
 
 	// Put the current counter values of associated PF FileHandles into variables
 	RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
 
+    // Let IndexManager access our private helper methods
+    friend class IndexManager;
+
+    private:
+        FileHandle fh;
 };
 
 #endif
