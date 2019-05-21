@@ -55,6 +55,12 @@ typedef struct InternalHeader
     uint32_t leftChildPage;
 } InternalHeader;
 
+typedef struct ChildEntry
+{
+    void *key;
+    uint32_t childPage;
+} ChildEntry;
+
 class IXFileHandle;
 
 class IndexManager {
@@ -88,7 +94,7 @@ class IndexManager {
                 bool lowKeyInclusive,
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
-
+    
         // Print the B+ tree in pre-order (in a JSON record format)
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         friend class IX_ScanIterator;
@@ -99,13 +105,38 @@ class IndexManager {
 
     private:
         static IndexManager *_index_manager;
+    
+        RC insert(const Attribute &attribute, const void *key, const RID &rid, IXFileHandle &fileHandle, int32_t pageID, ChildEntry &childEntry);
+        RC insertIntoInternal(const Attribute attribute, ChildEntry entry, void *pageData);
+        RC insertIntoLeaf(const Attribute attribute, const void *key, const RID &rid, void *pageData);
+        RC splitLeaf(IXFileHandle &fileHandle, const Attribute &attribute, const void *key, const RID rid, const int32_t pageID, void *originalLeaf, ChildEntry &childEntry);
+        RC splitInternal(IXFileHandle &fileHandle, const Attribute &attribute, const int32_t pageID, void *original, ChildEntry &childEntry);
 
         void printBtree_rec(IXFileHandle &ixfileHandle, string prefix, const int32_t currPage, const Attribute &attr) const;
         void printInternalNode(IXFileHandle &, void *pageData, const Attribute &attr, string prefix) const;
         void printInternalSlot(const Attribute &attr, const int32_t slotNum, const void *data) const;
         void printLeafNode(void *pageData, const Attribute &attr) const;
 
+        void setInternalHeader(const InternalHeader header, void *pageData);
+        InternalHeader getInternalHeader(const void *pageData) const;
+        void setLeafHeader(const LeafHeader header, void *pageData);
+        LeafHeader getLeafHeader(const void *pageData) const;
+        void setIndexEntry(const IndexEntry entry, const int slotNum, void *pageData);
+        IndexEntry getIndexEntry(const int slotNum, const void *pageData) const;
+        void setDataEntry(const DataEntry entry, const int slotNum, void *pageData);
         DataEntry getDataEntry(const int slotNum, const void *pageData) const;
+    
+        int getKeyLengthInternal(const Attribute attr, const void *key) const;
+        int getKeyLengthLeaf(const Attribute attr, const void *key) const;
+        int getFreeSpaceInternal(void *pageData) const;
+        int getFreeSpaceLeaf(void *pageData) const;
+    
+        RC find(IXFileHandle &handle, const Attribute attr, const void *key, int32_t &resultPageNum);
+        RC treeSearch(IXFileHandle &handle, const Attribute attr, const void *key, const int32_t currPageNum, int32_t &resultPageNum);
+        int32_t getNextChildPage(const Attribute attr, const void *key, void *pageData);
+    
+        RC deleteEntryFromLeaf(const Attribute attr, const void *key, const RID &rid, void *pageData);
+        RC deleteEntryFromInternal(const Attribute attr, const void *key, void *pageData);
 
         int compareLeafSlot(const Attribute attr, const void *key, const void *pageData, const int slotNum) const;
         // Returns -1, 0, or 1 if key is less than, equal to, or greater than value
