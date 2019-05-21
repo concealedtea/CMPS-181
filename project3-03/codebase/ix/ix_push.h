@@ -26,8 +26,8 @@ typedef struct LeafHeader
 typedef struct DataEntry
 {
     // not using union in print
-    union
-    {
+    // union to save space, only need 1 of the 3 depending on attribute type
+    union {
         int32_t integer;
         float real;
         int32_t varcharOffset;
@@ -38,12 +38,12 @@ typedef struct DataEntry
 // each entry has offset to key and link to child
 typedef struct IndexEntry
 {
-    //union
-    //{
+    // union to save space, only need 1 of the 3 depending on attribute type
+    union {
         int32_t integer;
         float real;
         int32_t varcharOffset;
-    //};
+    };
 	uint32_t childPage;
 } IndexEntry;
 
