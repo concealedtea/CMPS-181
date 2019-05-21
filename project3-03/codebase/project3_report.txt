@@ -1,9 +1,9 @@
 1. Basic information
-Team number (e.g., 01) : 
+Team number (e.g., 01) : 03
 #1 Student ID : 
 #1 Student Name : 
-#2 Student ID : 
-#2 Student Name : 
+#2 Student ID : 1509070
+#2 Student Name : Hon Yu Ho
 
 2. Meta-data page in an index file
 - Show your meta-data page of an index design if you have any. 
@@ -11,16 +11,24 @@ Team number (e.g., 01) :
 
 3. Index Entry Format
 - Show your index entry design (structure). 
-
+Depending on attribute type, store 4 bytes as integer, real, or varcharOffset
+Depending on non-leaf node or leaf node, store child page or rid
+varcharOffset points to the actual varchar stored from the end of the page
 
 4. Page Format
 - Show your internal-page (non-leaf node) design.
+1 byte to indicate is a non-leaf node
+2 bytes of number of entries, 2 bytes for free space offset (used for varchar)
+4 bytes for left most child page
 
 - Show your leaf-page (leaf node) design.
-
+1 byte to indicate is a leaf node
+4 bytes for previous leaf page, 4 bytes for next leaf page
+2 bytes of number of entries, 2 bytes for free space offset (used for varchar)
 
 5. Implementation Detail
 - Have you implemented non-lazy deletion? Choose Yes or No: Also provide implementation details if yes.
+No
 
 - Other implementation details:
 
