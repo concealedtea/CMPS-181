@@ -201,114 +201,71 @@ void IndexManager::printInternalNode(IXFileHandle &ixfileHandle, void *pageData,
 
 void IndexManager::printLeafNode(void *pageData, const Attribute &attr) const
 {
-    //const unsigned offset = sizeof(NodeType);
-    LeafHeader header; //= getLeafHeader(pageData);
+    //cout << "!!got in printLLeafNode!!" << endl;
+    LeafHeader header;
     memcpy(&header, (char*)pageData + sizeof(char), sizeof(LeafHeader));
+    //cout << "printLeafNode: LeafHeader: " << "numberOfSlots: " 
+    //     << header.numberOfSlots << endl;
     void *key = NULL;
     if (attr.type != TypeVarChar)
         key = malloc (INT_SIZE);
-    //bool first = true;
-    vector<RID> key_rids;
+    vector<RID> rids;
 
-    cout << "\"keys\":[";
+    cout << "\"keys\":[" << endl;
 
-    for (int i = 0; i <= header.numberOfSlots; i++)
+    for (int i = 0; i < header.numberOfSlots; i++)
     {
-        //const unsigned offset = sizeof(char) + sizeof(LeafHeader);
         unsigned slotOffset = sizeof(char) + sizeof(LeafHeader) + i * 12;
-        //DataEntry entry; //= getDataEntry(i, pageData);
-        //memcpy(&entry, (char*)pageData + sizeof(char) 
-        //    + sizeof(LeafHeader) + i * 12, sizeof(DataEntry));
-        //memcpy(&entry, (char*)pageData + slotOffset, 12);
-        if (i == 0) //(first && i < header.numberOfSlots)
+        
+        cout << "\"";
+        if (attr.type == TypeInt)
         {
-            key_rids.clear();
-            //first = false;
-            if (attr.type == TypeInt)
-                //memcpy(key, &(entry.integer), INT_SIZE);
-                memcpy(key, (char*)pageData + slotOffset, INT_SIZE);
-            else if (attr.type == TypeReal)
-                //memcpy(key, &(entry.real), REAL_SIZE);
-                memcpy(key, (char*)pageData + slotOffset, REAL_SIZE);
-            else
-            {
-                // Deal with reading in varchar
-                int32_t vOffset;
-                memcpy(&vOffset, (char*)pageData + slotOffset, 4);
+            memcpy(key, (char*)pageData + slotOffset, INT_SIZE);
+            cout << *(int*)key;
+        }
+        else if (attr.type == TypeReal)
+        {
+            memcpy(key, (char*)pageData + slotOffset, REAL_SIZE);
+            cout << *(float*)key;
+        }
+        else
+        {
+            //cout << (char*)key;
+            //cout << "\n!!printLeafNode: key + 4: " 
+            //    << (char*) key + 4 << "!!!" << endl;
 
-                int len;
-                memcpy(&len, (char*)pageData + vOffset, 
-                    VARCHAR_LENGTH_SIZE);
+            int32_t vOffset;
+            memcpy(&vOffset, (char*)pageData + slotOffset, 4);
 
-                free(key);
-                key = malloc(len + VARCHAR_LENGTH_SIZE + 1);
-                memcpy(key, &len, VARCHAR_LENGTH_SIZE);
-                memcpy((char*)key + VARCHAR_LENGTH_SIZE, (char*)pageData 
-                     + vOffset + VARCHAR_LENGTH_SIZE, len);
-                memset((char*)key + VARCHAR_LENGTH_SIZE + len, 0, 1);
-            }
+            int len;
+            memcpy(&len, (char*)pageData + vOffset, VARCHAR_LENGTH_SIZE);
+                
+            char name[len + 1];
+            name[len] =  '\0';
+            memcpy(name, (char*)pageData + vOffset + VARCHAR_LENGTH_SIZE, len);
+            cout << name;
         }
 
         RID rid;
         memcpy(&rid, (char*)pageData + slotOffset + 4, 8);
-        if (i < header.numberOfSlots && compareLeafSlot(attr, key, pageData, i) == 0)
-        {
-            key_rids.push_back(rid);
-        }
-        else if (i != 0)
-        {
-            cout << "\"";
-            if (attr.type == TypeInt)
-            {
-                cout << "!!intkey: " << (int*)key << endl;
-                cout << *(int*)key;
-                //memcpy(key, &(entry.integer), INT_SIZE);
-                memcpy(key, (char*)pageData + slotOffset, INT_SIZE);
-            }
-            else if (attr.type == TypeReal)
-            {
-                cout << *(float*)key;
-                //memcpy(key, &(entry.real), REAL_SIZE);
-                memcpy(key, (char*)pageData + slotOffset, REAL_SIZE);
-            }
-            else
-            {
-                cout << "!!key: " << (char*)key << endl;
-                cout << (char*)key + 4;
-
-                int32_t vOffset;
-                memcpy(&vOffset, (char*)pageData + slotOffset, 4);
-
-                int len;
-                memcpy(&len, (char*)pageData + vOffset, 
-                    VARCHAR_LENGTH_SIZE);
-
-                //int len;
-                //memcpy(&len, (char*)pageData + entry.varcharOffset, 
-                //    VARCHAR_LENGTH_SIZE);
-
-                free(key);
-                key = malloc(len + VARCHAR_LENGTH_SIZE + 1);
-                memcpy(key, &len, VARCHAR_LENGTH_SIZE);
-                memcpy((char*)key + VARCHAR_LENGTH_SIZE, (char*)pageData 
-                    + vOffset + VARCHAR_LENGTH_SIZE, len);
-                memset((char*)key + VARCHAR_LENGTH_SIZE + len, 0, 1);
-            }
+       
+        //cout << "\nprintLeafNode: RID is: pageNum: " << rid.pageNum 
+        //     << " slotNum: " << rid.slotNum << endl;
+        rids.push_back(rid);
             
-            cout << ":[";
-            for (unsigned j = 0; j < key_rids.size(); j++)
+        cout << ":[";
+        for (unsigned j = 0; j < rids.size(); j++)
+        {
+            if (j != 0)
             {
-                if (j != 0)
-                {
-                    cout << ",";
-                }
-                cout << "(" << key_rids[j].pageNum << "," << key_rids[j].slotNum << ")";
+                cout << ",";
             }
-            cout << "]\"";
-            key_rids.clear();
-            key_rids.push_back(rid);
-        } // else if (i != 0)
-    } // for (int i = 0; i <= header.numberOfSlots; i++)
+            cout << "(" << rids[j].pageNum << "," << rids[j].slotNum << ")";
+        }
+        cout << "]\"";
+        rids.clear();
+        
+    }
     cout << "]}";
     free (key);
 }
