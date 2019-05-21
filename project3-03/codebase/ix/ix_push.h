@@ -145,6 +145,35 @@ class IndexManager {
         int compare(const char *key, const char *value) const;
 };
 
+class IX_ScanIterator {
+public:
+    
+    // Constructor
+    IX_ScanIterator();
+    
+    // Destructor
+    ~IX_ScanIterator();
+    
+    // Get next matching entry
+    RC getNextEntry(RID &rid, void *key);
+    
+    // Terminate index scan
+    RC close();
+    
+    friend class IndexManager;
+private:
+    IXFileHandle *fileHandle;
+    Attribute attr;
+    const void *lowKey;
+    const void *highKey;
+    bool lowKeyInclusive;
+    bool highKeyInclusive;
+    void *page;
+    int slotNum;
+    
+    RC initialize(IXFileHandle &ixfileHandle, Attribute attribute, const void* lowKey, const void* highKey, bool lowKeyInclusive, bool highKeyInclusive);
+};
+
 class IXFileHandle {
     public:
 

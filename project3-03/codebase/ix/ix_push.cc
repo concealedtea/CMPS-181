@@ -568,6 +568,112 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
     return rc;
 }
 
+RC IndexManager::scan(IXFileHandle &ixfileHandle,
+                      const Attribute &attribute,
+                      const void      *lowKey,
+                      const void      *highKey,
+                      bool            lowKeyInclusive,
+                      bool            highKeyInclusive,
+                      IX_ScanIterator &ix_ScanIterator) {
+    return ix_ScanIterator.init(ixfileHandle, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+}
+
+IX_ScanIterator::IX_ScanIterator() {}
+
+IX_ScanIterator::~IX_ScanIterator() {}
+
+RC IX_ScanIterator::init(IXFileHandle &fh, Attribute attribute, const void *low, const void *high, bool lowInc, bool highInc) {
+    // store parameters
+    attr = attribute;
+    fileHandle = &fh;
+    lowKey = low;
+    highKey = high;
+    lowKeyInclusive = lowInc;
+    highKeyInclusive = highInc;
+    
+    page = malloc(PAGE_SIZE);
+    if (page == NULL)
+        return -1;
+    slotNum = 0;
+    
+    // find first page
+    IndexManager *im = IndexManager::instance();
+    int32_t startPageNum;
+    RC rc = im->find(*fileHandle, attr, lowKey, startPageNum);
+    if (rc) {
+        free(page);
+        return rc;
+    }
+    rc = fileHandle->readPage(startPageNum, page);
+    if (rc) {
+        free(page);
+        return rc;
+    }
+    
+    // find first entry
+    LeafHeader header = im->getLeafHeader(page);
+    int i = 0;
+    for (i = 0; i < header.entriesNumber; i++) {
+        int cmp = (low == NULL ? -1 : im->compareLeafSlot(attr, lowKey, page, i));
+        if (cmp < 0)
+            break;
+        if (cmp == 0 && lowKeyInclusive)
+            break;
+        if (cmp > 0)
+            continue;
+    }
+    slotNum = i;
+    return 0;
+}
+
+RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
+{
+    IndexManager *im = IndexManager::instance();
+    LeafHeader header = im->getLeafHeader(page);
+    // Chain to next leaf page
+    if (slotNum >= header.entriesNumber)
+    {
+        // no next page, EOF
+        if (header.next == 0)
+            return IX_EOF;
+        slotNum = 0;
+        fileHandle->readPage(header.next, page);
+        return getNextEntry(rid, key);
+    }
+    // highkey null, always go to next entry; else check if key < highkey
+    int cmp = highKey == NULL ? 1 : im->compareLeafSlot(attr, highKey, page, slotNum);
+    if (cmp == 0 && !highKeyInclusive)
+        return -1;
+    if (cmp < 0)
+        return -1;
+    
+    // get the data entry & its rid
+    DataEntry entry = im->getDataEntry(slotNum, page);
+    rid.pageNum = entry.rid.pageNum;
+    rid.slotNum = entry.rid.slotNum;
+    // get its key
+    if (attr.type == TypeInt)
+        memcpy(key, &(entry.integer), INT_SIZE);
+    else if (attr.type == TypeReal)
+        memcpy(key, &(entry.real), REAL_SIZE);
+    else
+    {
+        int len;
+        memcpy(&len, (char*)page + entry.varcharOffset, VARCHAR_LENGTH_SIZE);
+        memcpy(key, &len, VARCHAR_LENGTH_SIZE);
+        memcpy((char*)key + VARCHAR_LENGTH_SIZE, (char*)page + entry.varcharOffset + VARCHAR_LENGTH_SIZE, len);
+    }
+    // increment slotNum for next getNextEntry
+    slotNum++;
+    return 0;
+}
+
+RC IX_ScanIterator::close()
+{
+    free(page);
+    return 0;
+}
+
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const
 {
     int32_t rootPage = 1;
