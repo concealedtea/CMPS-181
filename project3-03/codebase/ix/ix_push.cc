@@ -433,16 +433,6 @@ RC IndexManager::insertIntoLeaf(const Attribute attribute, const void *key, cons
     return 0;
 }
 
-int IndexManager::getOffsetOfLeafSlot(int slotNum) const
-{
-    return sizeof(NodeType) + sizeof(LeafHeader) + slotNum * 12;
-}
-
-int IndexManager::getOffsetOfInternalSlot(int slotNum) const
-{
-    return sizeof(NodeType) + sizeof(InternalHeader) + slotNum * sizeof(IndexEntry);
-}
-
 RC IndexManager::splitInternal(IXFileHandle &fileHandle, const Attribute &attribute, const int32_t pageID, void *original, ChildEntry &childEntry) {
     InternalHeader originalHeader = getInternalHeader(original);
 

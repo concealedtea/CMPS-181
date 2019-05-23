@@ -115,11 +115,6 @@ class IndexManager {
         // Inserts <key, rid> into the given leaf node. Returns an error if there's not enough free space
         RC insertIntoLeaf(const Attribute attribute, const void *key, const RID &rid, void *pageData);
 
-        // Gets offset to a leaf slot with the given slot number
-        int getOffsetOfLeafSlot(int slotNum) const;
-        // Gets offset to an internal slot with the given slot number
-        int getOffsetOfInternalSlot(int slotNum) const;
-
         // Handles splitting a leaf
         RC splitLeaf(IXFileHandle &fileHandle, const Attribute &attribute, const void *key, const RID rid, const int32_t pageID, void *originalLeaf, ChildEntry &childEntry);
         // Handles splitting an internal node, including the case where the root needs to be split
