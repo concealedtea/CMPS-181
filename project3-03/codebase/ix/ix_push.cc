@@ -969,46 +969,38 @@ NodeType IndexManager::getNodetype(const void *pageData) const
 
 void IndexManager::setInternalHeader(const InternalHeader header, void *pageData)
 {
-    const unsigned offset = sizeof(NodeType);
-    memcpy((char*)pageData + offset, &header, sizeof(InternalHeader));
+    memcpy((char*)pageData + sizeof(NodeType), &header, sizeof(InternalHeader));
 }
 
 InternalHeader IndexManager::getInternalHeader(const void *pageData) const
 {
-    const unsigned offset = sizeof(NodeType);
     InternalHeader header;
-    memcpy(&header, (char*)pageData + offset, sizeof(InternalHeader));
+    memcpy(&header, (char*)pageData + sizeof(NodeType), sizeof(InternalHeader));
     return header;
 }
 
 void IndexManager::setLeafHeader(const LeafHeader header, void *pageData)
 {
-    const unsigned offset = sizeof(NodeType);
-    memcpy((char*)pageData + offset, &header, sizeof(LeafHeader));
+    memcpy((char*)pageData + sizeof(NodeType), &header, sizeof(LeafHeader));
 }
 
 LeafHeader IndexManager::getLeafHeader(const void *pageData) const
 {
-    const unsigned offset = sizeof(NodeType);
     LeafHeader header;
-    memcpy(&header, (char*)pageData + offset, sizeof(LeafHeader));
+    memcpy(&header, (char*)pageData + sizeof(NodeType), sizeof(LeafHeader));
     return header;
 }
 
 void IndexManager::setIndexEntry(const IndexEntry entry, const int slotNum, 
     void *pageData)
 {
-    const unsigned offset = sizeof(NodeType) + sizeof(InternalHeader);
-    unsigned slotOffset = offset + slotNum * sizeof(IndexEntry);
-    memcpy((char*) pageData + slotOffset, &entry, sizeof(IndexEntry));
+    memcpy((char*) pageData + sizeof(NodeType) + sizeof(InternalHeader) + slotNum * sizeof(IndexEntry), &entry, sizeof(IndexEntry));
 }
 
 IndexEntry IndexManager::getIndexEntry(const int slotNum, const void *pageData) const
 {
-    const unsigned offset = sizeof(NodeType) + sizeof(InternalHeader);
-    unsigned slotOffset = offset + slotNum * sizeof(IndexEntry);
     IndexEntry entry;
-    memcpy(&entry, (char*)pageData + slotOffset, sizeof(IndexEntry));
+    memcpy(&entry, (char*)pageData + sizeof(NodeType) + sizeof(InternalHeader) + slotNum * sizeof(IndexEntry), sizeof(IndexEntry));
     return entry;
 }
 
