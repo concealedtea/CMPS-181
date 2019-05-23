@@ -365,31 +365,39 @@ RC IndexManager::insertIntoInternal(const Attribute attribute, ChildEntry entry,
     // i is slot number to move
     //int start_offset = getOffsetOfInternalSlot(i);
     //int end_offset = getOffsetOfInternalSlot(header.numberOfSlots);
-    int start_offset = sizeof(char) + sizeof(InternalHeader) + i * sizeof(IndexEntry);
-    int end_offset = sizeof(char) + sizeof(InternalHeader) + header.numberOfSlots * sizeof(IndexEntry);
+    int start_offset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+    int end_offset = sizeof(char) + sizeof(InternalHeader) + header.numberOfSlots * 8;
     // shift all data entries starting at start_offset to the right to make room for a new dataEntry
-    memmove((char*)pageData + start_offset + sizeof(IndexEntry), (char*)pageData + start_offset, end_offset - start_offset);
+    memmove((char*)pageData + start_offset + 8, (char*)pageData + start_offset, end_offset - start_offset);
 
-    IndexEntry newEntry;
-    newEntry.childPage = entry.childPage;
-    if (attribute.type == TypeVarChar) {
+    unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+    uint32_t childPage = entry.childPage;
+    
+    if (attribute.type == TypeVarChar) 
+    {
         int32_t len;
         memcpy(&len, entry.key, VARCHAR_LENGTH_SIZE);
-        newEntry.varcharOffset = header.freeSpaceOffset - (len + VARCHAR_LENGTH_SIZE);
-        memcpy((char*)pageData + newEntry.varcharOffset, entry.key, len + VARCHAR_LENGTH_SIZE);
-        header.freeSpaceOffset = newEntry.varcharOffset;
+        int32_t vOffset = header.freeSpaceOffset - (len + VARCHAR_LENGTH_SIZE);
+        memcpy((char*) pageData + slotOffset, &vOffset, 4);
+        memcpy((char*)pageData + vOffset, entry.key, len + VARCHAR_LENGTH_SIZE);
+        header.freeSpaceOffset = vOffset;
     }
     
-    else if (attribute.type == TypeInt) {
-        memcpy(&newEntry.integer, entry.key, INT_SIZE);
+    else if (attribute.type == TypeInt) 
+    {
+        int32_t iTemp;
+        memcpy(&iTemp, entry.key, INT_SIZE);
+        memcpy((char*) pageData + slotOffset, &iTemp, 4);
     }
-    else { // attribute.type == TypeReal
-        
-        memcpy(&newEntry.real, entry.key, REAL_SIZE);
+    else 
+    {
+        float rTemp;
+        memcpy(&rTemp, entry.key, REAL_SIZE);
+        memcpy((char*) pageData + slotOffset, &rTemp, 4);
     }
+    memcpy((char*) pageData + slotOffset + 4, &childPage, 4);
     header.numberOfSlots += 1;
     setInternalHeader(header, pageData);
-    setIndexEntry(newEntry, i, pageData);
     return 0;
 }
 
@@ -411,8 +419,8 @@ RC IndexManager::insertIntoLeaf(const Attribute attribute, const void *key, cons
     //int end_offset = getOffsetOfLeafSlot(header.numberOfSlots);
     int start_offset = sizeof(char) + sizeof(LeafHeader) + i * 12;
     int end_offset = sizeof(char) + sizeof(LeafHeader) + header.numberOfSlots * 12;
-        // shift all data entries starting at start_offset to the right to make room for a new dataEntry
-        memmove((char*)pageData + start_offset + 12, (char*)pageData + start_offset, end_offset - start_offset);
+    // shift all data entries starting at start_offset to the right to make room for a new dataEntry
+    memmove((char*)pageData + start_offset + 12, (char*)pageData + start_offset, end_offset - start_offset);
 
     unsigned slotOffset = sizeof(char) + sizeof(LeafHeader) + i * 12;
     if (attribute.type == TypeVarChar) {
@@ -441,15 +449,23 @@ RC IndexManager::splitInternal(IXFileHandle &fileHandle, const Attribute &attrib
     int i;
     int lastSize = 0;
     for (i = 0; i < originalHeader.numberOfSlots; i++) {
-        IndexEntry entry = getIndexEntry(i, original);
+        unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
         void *key;
 
         if (attribute.type == TypeVarChar)
-            key = (char*)original + entry.varcharOffset;
+        {
+            int vOffset;
+            memcpy(&vOffset, (char*)original + slotOffset, 4);
+            key = (char*)original + vOffset;
+        }
         else if (attribute.type == TypeInt)
-            key = &(entry.integer);
-        else // attribute.type == TypeReal
-            key = &(entry.real);
+        {
+            memcpy(key, (char*)original + slotOffset, 4);
+        }
+        else
+        {        
+            memcpy(key, (char*)original + slotOffset, 4);
+        }
 
         lastSize = getKeyLengthInternal(attribute, key);
         size += lastSize;
@@ -457,9 +473,6 @@ RC IndexManager::splitInternal(IXFileHandle &fileHandle, const Attribute &attrib
             break;
         }
     }
-    // i is now middle key
-    IndexEntry middleEntry = getIndexEntry(i, original);
-
     // Create new leaf to hold overflow
     void *newIntern = calloc(PAGE_SIZE, 1);
     //setNodeType(IX_TYPE_INTERNAL, newIntern);
@@ -468,30 +481,48 @@ RC IndexManager::splitInternal(IXFileHandle &fileHandle, const Attribute &attrib
     InternalHeader newHeader;
     newHeader.numberOfSlots = 0;
     newHeader.freeSpaceOffset = PAGE_SIZE;
-    newHeader.leftChildPage = middleEntry.childPage;
+    int32_t childPage;
+    unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+    memcpy(&childPage, (char*)original + slotOffset + 4, 4);
+    newHeader.leftChildPage = childPage;
     setInternalHeader(newHeader, newIntern);
 
     // get size of middle key, keep middle key for later
-    int keySize = attribute.type == TypeVarChar ? lastSize - sizeof(IndexEntry) : INT_SIZE;
+    int keySize = attribute.type == TypeVarChar ? lastSize - 8 : INT_SIZE;
     void *middleKey = malloc(keySize);
     if (attribute.type != TypeVarChar)
-        memcpy(middleKey, &(middleEntry.integer), INT_SIZE);
+    {
+        int32_t iTemp;
+        memcpy(&iTemp, (char*)original + slotOffset, 4);
+        memcpy(middleKey, &iTemp, INT_SIZE);
+    }
     else
-        memcpy(middleKey, (char*)original + middleEntry.varcharOffset, keySize);
+    {
+        int32_t vOffset;
+        memcpy(&vOffset, (char*)original + slotOffset, 4);
+        memcpy(middleKey, (char*)original + vOffset, keySize);
+    }
 
     void *moving_key = malloc (attribute.length + 4);
     // Grab data entries after the middle entry; delete and shift the remaining
     for (int j = 1; j < originalHeader.numberOfSlots - i; j++) {
-        IndexEntry entry = getIndexEntry(i + 1, original);
-        int32_t moving_pagenum = entry.childPage;
-        if (attribute.type != TypeVarChar) {
-            memcpy(moving_key, &(entry.integer), INT_SIZE);
+        unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + (i + 1) * 8;
+        int32_t moving_pagenum;
+        memcpy(&moving_pagenum, (char*)original + slotOffset + 4, 4);
+        if (attribute.type != TypeVarChar) 
+        {            
+            int32_t iTemp;
+            memcpy(&iTemp, (char*)original + slotOffset, 4);
+            memcpy(moving_key, &iTemp, INT_SIZE);
         }
-        else {
+        else 
+        {
+            int32_t vOffset;
+            memcpy(&vOffset, (char*)original + slotOffset, 4);
             int32_t len;
-            memcpy(&len, (char*)original + entry.varcharOffset, VARCHAR_LENGTH_SIZE);
+            memcpy(&len, (char*)original + vOffset, VARCHAR_LENGTH_SIZE);
             memcpy(moving_key, &len, VARCHAR_LENGTH_SIZE);
-            memcpy((char*)moving_key + VARCHAR_LENGTH_SIZE,(char*)original + entry.varcharOffset + VARCHAR_LENGTH_SIZE, len);
+            memcpy((char*)moving_key + VARCHAR_LENGTH_SIZE,(char*)original + vOffset + VARCHAR_LENGTH_SIZE, len);
         }
         ChildEntry tmp;
         tmp.key = moving_key;
@@ -624,7 +655,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, string prefix, con
     char type; //= getNodetype(pageData);
     memcpy(&type, pageData, sizeof(char));
     cout << "\nprintBtree_rec: currPage: " << currPage 
-        << " type: " << (int) type << endl;
+         << " type: " << (int) type << endl;
     if (type == 0)
     {
         printLeafNode(pageData, attr);
@@ -637,7 +668,7 @@ void IndexManager::printBtree_rec(IXFileHandle &ixfileHandle, string prefix, con
 }
 
 void IndexManager::printInternalNode(IXFileHandle &ixfileHandle, void *pageData,
-    const Attribute &attr, string prefix) const
+                                     const Attribute &attr, string prefix) const
 {
     const unsigned offset = sizeof(char);
     InternalHeader header;
@@ -648,24 +679,31 @@ void IndexManager::printInternalNode(IXFileHandle &ixfileHandle, void *pageData,
     {
         if (i != 0)
             cout << ",";
-        //printInternalSlot(attr, i, pageData);
-        IndexEntry entry;
-        memcpy(&entry, (char*)pageData + sizeof(char) + sizeof(InternalHeader) 
-               + i * sizeof(IndexEntry), sizeof(IndexEntry));
-        if (attr.type == TypeVarChar) {
+        printInternalSlot(attr, i, pageData);
+        unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+        if (attr.type == TypeVarChar) 
+        {
+            int32_t vOffset;
+            memcpy(&vOffset, (char*)pageData + slotOffset, 4);
             int32_t len;
-            memcpy(&len, (char*)pageData + entry.varcharOffset, VARCHAR_LENGTH_SIZE);
+            memcpy(&len, (char*)pageData + vOffset, VARCHAR_LENGTH_SIZE);
             char varchar[len + 1];
             varchar[len] = '\0';
-            memcpy(varchar, (char*)pageData + entry.varcharOffset
+            memcpy(varchar, (char*)pageData + vOffset
                    + VARCHAR_LENGTH_SIZE, len);
             cout << varchar;
         }
-        else if (attr.type == TypeInt) {
-            cout << entry.integer;
+        else if (attr.type == TypeInt) 
+        {
+            int32_t iTemp;
+            memcpy(&iTemp, (char*)pageData + slotOffset, 4);
+            cout << iTemp;
         }
-        else { // attr.type == TypeReal
-            cout << entry.real;
+        else 
+        {
+            float rTemp;
+            memcpy(&rTemp, (char*)pageData + slotOffset, 4);
+            cout << rTemp;
         }
     }
 
@@ -681,13 +719,12 @@ void IndexManager::printInternalNode(IXFileHandle &ixfileHandle, void *pageData,
         else
         {
             cout << ",\n" << prefix;
-            const unsigned offset = sizeof(NodeType) + sizeof(InternalHeader);
-            unsigned slotOffset = offset + (i - 1) * sizeof(IndexEntry);
-            IndexEntry entry; //= getIndexEntry(i - 1, pageData);
-            memcpy(&entry, (char*)pageData + slotOffset, sizeof(IndexEntry));
+            unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + (i - 1) * 8;
+            uint32_t childPage;
+            memcpy(&childPage, (char*)pageData + slotOffset + 4, 4);
 
             cout << "{";
-            printBtree_rec(ixfileHandle, prefix + "  ", entry.childPage, attr);
+            printBtree_rec(ixfileHandle, prefix + "  ", childPage, attr);
             cout << "}";
         }
     }
@@ -771,26 +808,29 @@ void IndexManager::printLeafNode(void *pageData, const Attribute &attr) const
 
 void IndexManager::printInternalSlot(const Attribute &attr, const int32_t slotNum, const void *data) const
 {
-    //IndexEntry entry = getIndexEntry(slotNum, data);
-    //const unsigned offset = sizeof(char) + sizeof(InternalHeader);
-    //unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) 
-    //     + slotNum * sizeof(IndexEntry);
-    IndexEntry entry;
-    memcpy(&entry, (char*)data + sizeof(char) + sizeof(InternalHeader) 
-         + slotNum * sizeof(IndexEntry), sizeof(IndexEntry));
-    if (attr.type == TypeVarChar) {
+    unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + slotNum * 8;
+    if (attr.type == TypeVarChar) 
+    {
+        int vOffset;
+        memcpy(&vOffset, (char*)data + slotOffset, 4);
         int32_t len;
-        memcpy(&len, (char*)data + entry.varcharOffset, VARCHAR_LENGTH_SIZE);
+        memcpy(&len, (char*)data + vOffset, VARCHAR_LENGTH_SIZE);
         char varchar[len + 1];
         varchar[len] = '\0';
-        memcpy(varchar, (char*)data + entry.varcharOffset + VARCHAR_LENGTH_SIZE, len);
+        memcpy(varchar, (char*)data + vOffset + VARCHAR_LENGTH_SIZE, len);
         cout << varchar;
     }
-    else if (attr.type == TypeInt) {
-        cout << entry.integer;
+    else if (attr.type == TypeInt) 
+    {
+        int32_t iTemp;
+        memcpy(&iTemp, (char*)data + slotOffset, 4);
+        cout << iTemp;
     }
-    else { // attr.type == TypeReal
-        cout << entry.real;
+    else 
+    {
+        float rTemp;
+        memcpy(&rTemp, (char*)data + slotOffset, 4);
+        cout << rTemp;
     }
 }
 
@@ -991,19 +1031,6 @@ LeafHeader IndexManager::getLeafHeader(const void *pageData) const
     return header;
 }
 
-void IndexManager::setIndexEntry(const IndexEntry entry, const int slotNum, 
-    void *pageData)
-{
-    memcpy((char*) pageData + sizeof(NodeType) + sizeof(InternalHeader) + slotNum * sizeof(IndexEntry), &entry, sizeof(IndexEntry));
-}
-
-IndexEntry IndexManager::getIndexEntry(const int slotNum, const void *pageData) const
-{
-    IndexEntry entry;
-    memcpy(&entry, (char*)pageData + sizeof(NodeType) + sizeof(InternalHeader) + slotNum * sizeof(IndexEntry), sizeof(IndexEntry));
-    return entry;
-}
-
 RC IndexManager::getRootPageNum(IXFileHandle &fileHandle, int32_t &result) const
 {
     void *metaPage = malloc(PAGE_SIZE);
@@ -1072,17 +1099,19 @@ int32_t IndexManager::getNextChildPage(const Attribute attr, const void *key, vo
     }
     if (i != 0)
     {
-        IndexEntry entry = getIndexEntry(i - 1, pageData);
-        result = entry.childPage;
+        memcpy(&result, (char*)pageData + sizeof(char) + sizeof(InternalHeader) 
+            + (i -1) * 8 + 4, 4);
     }
     return result;
 }
 
 int IndexManager::compareSlot(const Attribute attr, const void *key, const void *pageData, const int slotNum) const
 {
-    IndexEntry entry = getIndexEntry(slotNum, pageData);
+    unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + slotNum * 8;
     if (attr.type == TypeVarChar) {
-        int32_t value_offset = entry.varcharOffset;
+        int32_t vOffset;
+        memcpy(&vOffset, (char*)pageData + slotOffset, 4);
+        int32_t value_offset = vOffset;
         int32_t value_size;
         int32_t key_size;
         memcpy(&value_size, (char*)pageData + value_offset, VARCHAR_LENGTH_SIZE);
@@ -1096,15 +1125,21 @@ int IndexManager::compareSlot(const Attribute attr, const void *key, const void 
         
         return compare(key_text, value_text);
     }
-    else if (attr.type == TypeInt) {
+    else if (attr.type == TypeInt) 
+    {
         int32_t key_int;
         memcpy(&key_int, key, INT_SIZE);
-        return compare(key_int, entry.integer);
+        int32_t iTemp;
+        memcpy(&iTemp, (char*)pageData + slotOffset, 4);
+        return compare(key_int, iTemp);
     }
-    else { // attr.type == TypeReal
+    else 
+    {
         float key_real;
         memcpy(&key_real, key, REAL_SIZE);
-        return compare(key_real, entry.real);
+        float rTemp;
+        memcpy(&rTemp, (char*)pageData + slotOffset, 4);
+        return compare(key_real, rTemp);
     }
     return 0;
 }
@@ -1174,7 +1209,7 @@ int IndexManager::compare(const char *key, const char *value) const
 // Get size needed to insert key into page
 int IndexManager::getKeyLengthInternal(const Attribute attr, const void *key) const
 {
-    int size = sizeof(IndexEntry);
+    int size = 8;
     if (attr.type == TypeVarChar)
     {
         int32_t key_len;
@@ -1202,14 +1237,14 @@ int IndexManager::getFreeSpaceInternal(void *pageData) const
 {
     InternalHeader header = getInternalHeader(pageData);
     return header.freeSpaceOffset - (sizeof(NodeType) 
-        + sizeof(InternalHeader) + header.numberOfSlots * sizeof(IndexEntry));
+                                     + sizeof(InternalHeader) + header.numberOfSlots * 8);
 }
 
 int IndexManager::getFreeSpaceLeaf(void *pageData) const
 {
     LeafHeader header = getLeafHeader(pageData);
     return header.freeSpaceOffset - (sizeof(NodeType) + sizeof(LeafHeader) 
-        + header.numberOfSlots * 12);
+                                     + header.numberOfSlots * 12);
 }
 
 RC IndexManager::deleteEntryFromLeaf(const Attribute attr, const void *key, const RID &rid, void *pageData) {
@@ -1289,22 +1324,21 @@ RC IndexManager::deleteEntryFromInternal(const Attribute attr, const void *key, 
         return -1;
     }
 
-    IndexEntry entry = getIndexEntry(i, pageData);
-
     // get positions where the deleted entry starts and ends
-    //unsigned slotStartOffset = getOffsetOfInternalSlot(i);
-    //unsigned slotEndOffset = getOffsetOfInternalSlot(header.numberOfSlots);
-    unsigned slotStartOffset = sizeof(char) + sizeof(InternalHeader) + i * sizeof(IndexEntry);
-    unsigned slotEndOffset = sizeof(char) + sizeof(InternalHeader) + header.numberOfSlots * sizeof(IndexEntry);
+    unsigned slotStartOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+    unsigned slotEndOffset = sizeof(char) + sizeof(InternalHeader) + header.numberOfSlots * 8;
 
     // move entries over, overwriting the deleted slot
-    memmove((char*)pageData + slotStartOffset, (char*)pageData + slotStartOffset + sizeof(IndexEntry), slotEndOffset - slotStartOffset - sizeof(IndexEntry));
+    memmove((char*)pageData + slotStartOffset, (char*)pageData + slotStartOffset + 8, slotEndOffset - slotStartOffset - 8);
     // update numberOfSlots
     header.numberOfSlots -= 1;
 
     // if index of varchars, need shift varchars also
-    if (attr.type == TypeVarChar) {
-        int32_t varcharOffset = entry.varcharOffset;
+    unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+    if (attr.type == TypeVarChar) 
+    {
+        int32_t varcharOffset;
+        memcpy(&varcharOffset, (char*)pageData + slotOffset, 4);
         int32_t varchar_len;
         memcpy(&varchar_len, (char*)pageData + varcharOffset, VARCHAR_LENGTH_SIZE);
         int32_t entryLen = varchar_len + VARCHAR_LENGTH_SIZE;
@@ -1315,10 +1349,17 @@ RC IndexManager::deleteEntryFromInternal(const Attribute attr, const void *key, 
         // Update all of the slots that are moved over
         for (i = 0; i < header.numberOfSlots; i++)
         {
-            entry = getIndexEntry(i, pageData);
-            if (entry.varcharOffset < varcharOffset)
-                entry.varcharOffset += entryLen;
-            setIndexEntry(entry, i, pageData);
+            unsigned slotOffset = sizeof(char) + sizeof(InternalHeader) + i * 8;
+            int32_t vOffset;
+            memcpy(&vOffset, (char*)pageData + slotOffset, 4);
+            uint32_t childPage;
+            memcpy(&childPage, (char*)pageData + slotOffset + 4, 4);
+            if (vOffset < varcharOffset)
+            {
+                vOffset += entryLen;
+            }     
+            memcpy((char*)pageData + slotOffset, &vOffset , 4);
+            memcpy((char*)pageData + slotOffset + 4, &childPage, 4);
         }
     }
     setInternalHeader(header, pageData);
