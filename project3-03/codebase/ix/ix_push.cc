@@ -1059,25 +1059,18 @@ RC IndexManager::treeSearch(IXFileHandle &handle, const Attribute attr, const vo
 int32_t IndexManager::getNextChildPage(const Attribute attr, const void *key, void *pageData)
 {
     InternalHeader header = getInternalHeader(pageData);
+    int32_t result = header.leftChildPage;
     if (key == NULL)
-        return header.leftChildPage;
-
+        return result;
+    
     int i = 0;
     for (i = 0; i < header.numberOfSlots; i++)
     {
-        // If key < slot key we have, then the previous entry holds the path
+        // if key < slot key, then go down previous entry's child
         if (compareSlot(attr, key, pageData, i) <= 0)
             break;
     }
-    int32_t result;
-    // Special case where key is less than all entries in this node
-    if (i == 0)
-    {
-        result = header.leftChildPage;
-    }
-    // Usual case where we grab the child to the right of the largest entry less than key
-    // This also works if key is larger than all entries
-    else
+    if (i != 0)
     {
         IndexEntry entry = getIndexEntry(i - 1, pageData);
         result = entry.childPage;
