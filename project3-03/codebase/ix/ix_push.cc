@@ -1082,30 +1082,29 @@ int IndexManager::compareSlot(const Attribute attr, const void *key, const void 
 {
     IndexEntry entry = getIndexEntry(slotNum, pageData);
     if (attr.type == TypeVarChar) {
-        int32_t key_size;
-        memcpy(&key_size, key, VARCHAR_LENGTH_SIZE);
-        char key_text[key_size + 1];
-        key_text[key_size] = '\0';
-        memcpy(key_text, (char*) key + VARCHAR_LENGTH_SIZE, key_size);
-        
         int32_t value_offset = entry.varcharOffset;
         int32_t value_size;
+        int32_t key_size;
         memcpy(&value_size, (char*)pageData + value_offset, VARCHAR_LENGTH_SIZE);
+        memcpy(&key_size, key, VARCHAR_LENGTH_SIZE);
         char value_text[value_size + 1];
+        char key_text[key_size + 1];
         value_text[value_size] = '\0';
+        key_text[key_size] = '\0';
         memcpy(value_text, (char*)pageData + value_offset + VARCHAR_LENGTH_SIZE, value_size);
+        memcpy(key_text, (char*) key + VARCHAR_LENGTH_SIZE, key_size);
         
         return compare(key_text, value_text);
     }
     else if (attr.type == TypeInt) {
-        int32_t int_key;
-        memcpy(&int_key, key, INT_SIZE);
-        return compare(int_key, entry.integer);
+        int32_t key_int;
+        memcpy(&key_int, key, INT_SIZE);
+        return compare(key_int, entry.integer);
     }
     else { // attr.type == TypeReal
-        float real_key;
-        memcpy(&real_key, key, REAL_SIZE);
-        return compare(real_key, entry.real);
+        float key_real;
+        memcpy(&key_real, key, REAL_SIZE);
+        return compare(key_real, entry.real);
     }
     return 0;
 }
@@ -1113,21 +1112,20 @@ int IndexManager::compareSlot(const Attribute attr, const void *key, const void 
 int IndexManager::compareLeafSlot(const Attribute attr, const void *key, const void *pageData, const int slotNum) const
 {
     if (attr.type == TypeVarChar) {
-        int32_t key_size;
-        memcpy(&key_size, key, VARCHAR_LENGTH_SIZE);
-        char key_text[key_size + 1];
-        key_text[key_size] = '\0';
-        memcpy(key_text, (char*) key + VARCHAR_LENGTH_SIZE, key_size);
-        
         int vOffset;
         memcpy(&vOffset, (char*)pageData + sizeof(char) + sizeof(LeafHeader)
                + slotNum * 12, 4);
         int32_t value_offset = vOffset;
         int32_t value_size;
+        int32_t key_size;
         memcpy(&value_size, (char*)pageData + value_offset, VARCHAR_LENGTH_SIZE);
+        memcpy(&key_size, key, VARCHAR_LENGTH_SIZE);
         char value_text[value_size + 1];
+        char key_text[key_size + 1];
         value_text[value_size] = '\0';
+        key_text[key_size] = '\0';
         memcpy(value_text, (char*)pageData + value_offset + VARCHAR_LENGTH_SIZE, value_size);
+        memcpy(key_text, (char*) key + VARCHAR_LENGTH_SIZE, key_size);
         
         return compare(key_text, value_text);
     }
@@ -1135,17 +1133,17 @@ int IndexManager::compareLeafSlot(const Attribute attr, const void *key, const v
         int temp;
         memcpy(&temp, (char*)pageData + sizeof(char) + sizeof(LeafHeader)
                + slotNum * 12, 4);
-        int32_t int_key;
-        memcpy(&int_key, key, INT_SIZE);
-        return compare(int_key, temp);
+        int32_t key_int;
+        memcpy(&key_int, key, INT_SIZE);
+        return compare(key_int, temp);
     }
     else { // attr.type == TypeReal
         float temp;
         memcpy(&temp, (char*)pageData + sizeof(char) + sizeof(LeafHeader)
                + slotNum * 12, 4);
-        float real_key;
-        memcpy(&real_key, key, REAL_SIZE);
-        return compare(real_key, temp);
+        float key_real;
+        memcpy(&key_real, key, REAL_SIZE);
+        return compare(key_real, temp);
     }
     return 0; // suppress warnings
 }
