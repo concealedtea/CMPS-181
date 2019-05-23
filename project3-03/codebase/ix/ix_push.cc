@@ -141,12 +141,43 @@ RC IndexManager::insert(const Attribute &attribute, const void *key, const RID &
     char type; //= getNodetype(pageData);
     memcpy(&type, pageData, sizeof(char));
 
-    if (type == 1) {
+    if (type == 0) {
+        // try insert
+        RC rc = insertIntoLeaf(attribute, key, rid, pageData);
+        if (rc == 0) { // successful insert
+            // write changes
+            if (fileHandle.writePage(pageID, pageData))
+                return -1;
+            
+            // clear childEntry to defaults
+            free (childEntry.key);
+            childEntry.key = NULL;
+            childEntry.childPage = 0;
+            
+            free(pageData);
+            pageData = NULL;
+            return 0;
+        }
+        else if (rc == -2) { // Need split leaf
+            rc = splitLeaf(fileHandle, attribute, key, rid, pageID, pageData, childEntry);
+            free(pageData);
+            pageData = NULL;
+            return rc;
+        }
+        else { // should never happen
+            free(pageData);
+            pageData = NULL;
+            free(childEntry.key);
+            childEntry.key = NULL;
+            return -1;
+        }
+    }
+    else { // type == 1
         int32_t childPage = getNextChildPage(attribute, key, pageData);
         free (pageData);
         if (childPage == 0)
             return -1;
-
+        
         // do recursive insert
         RC rc = insert(attribute, key, rid, fileHandle, childPage, childEntry);
         if (rc)
@@ -159,11 +190,11 @@ RC IndexManager::insert(const Attribute &attribute, const void *key, const RID &
             free(pageData);
             return -1;
         }
-
+        
         rc = insertIntoInternal(attribute, childEntry, pageData);
         if (rc == 0) {
             rc = fileHandle.writePage(pageID, pageData);
-
+            
             // clear childEntry to defaults
             free (childEntry.key);
             childEntry.key = NULL;
@@ -180,37 +211,6 @@ RC IndexManager::insert(const Attribute &attribute, const void *key, const RID &
         }
         else { // should never happen
             free(pageData);
-            free(childEntry.key);
-            childEntry.key = NULL;
-            return -1;
-        }
-    }
-    else { // type == 0
-        // try insert
-        RC rc = insertIntoLeaf(attribute, key, rid, pageData);
-        if (rc == 0) { // successful insert
-            // write changes
-            if (fileHandle.writePage(pageID, pageData))
-                return -1;
-
-            // clear childEntry to defaults
-            free (childEntry.key);
-            childEntry.key = NULL;
-            childEntry.childPage = 0;
-
-            free(pageData);
-            pageData = NULL;
-            return SUCCESS;
-        }
-        else if (rc == -2) { // Need split leaf
-            rc = splitLeaf(fileHandle, attribute, key, rid, pageID, pageData, childEntry);
-            free(pageData);
-            pageData = NULL;
-            return rc;
-        }
-        else { // should never happen
-            free(pageData);
-            pageData = NULL;
             free(childEntry.key);
             childEntry.key = NULL;
             return -1;
