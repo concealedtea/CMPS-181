@@ -1,10 +1,10 @@
-
 #include "rm.h"
 
 #include <algorithm>
 #include <cstring>
 
 RelationManager* RelationManager::_rm = 0;
+IndexManager* RelationManager::_im = 0;
 
 RelationManager* RelationManager::instance()
 {
@@ -15,7 +15,7 @@ RelationManager* RelationManager::instance()
 }
 
 RelationManager::RelationManager()
-: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor())
+    : tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor())
 {
 }
 
@@ -814,11 +814,11 @@ void RelationManager::fromAPI(float &real, void *data)
 
 // Makes use of underlying rbfm_scaniterator
 RC RelationManager::scan(const string &tableName,
-      const string &conditionAttribute,
-      const CompOp compOp,                  
-      const void *value,                    
-      const vector<string> &attributeNames,
-      RM_ScanIterator &rm_ScanIterator)
+                         const string &conditionAttribute,
+                         const CompOp compOp,                  
+                         const void *value,                    
+                         const vector<string> &attributeNames,
+                         RM_ScanIterator &rm_ScanIterator)
 {
     // Open the file for the given tableName
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
@@ -834,7 +834,7 @@ RC RelationManager::scan(const string &tableName,
 
     // Use the underlying rbfm_scaniterator to do all the work
     rc = rbfm->scan(rm_ScanIterator.fileHandle, recordDescriptor, conditionAttribute,
-                     compOp, value, attributeNames, rm_ScanIterator.rbfm_iter);
+                    compOp, value, attributeNames, rm_ScanIterator.rbfm_iter);
     if (rc)
         return rc;
 
@@ -858,12 +858,78 @@ RC RM_ScanIterator::close()
 
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
-    return -1;
+    string fn = tableName + "_" + attributeName + TABLE_FILE_EXTENSION;
+
+    if (_im->createFile(fn) != 0)
+    {
+        return -1;
+    }
+
+    IXFileHandle ixfh;
+    if (_im->openFile(fn, ixfh) != 0)
+    {
+        return -1;
+    }
+    
+    _rm->createCatalog();
+    if (insertIndex(tableName, attributeName, ixfh) != 0)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+RC RelationManager::insertIndex(const string& tableName, const string &attributeName,
+    IXFileHandle ixfh)
+{
+    Attribute att;
+    att.name = attributeName;    
+    vector<Attribute> attList;
+    getAttributes(tableName, attList);
+
+    for (unsigned i = 0; i < attList.size(); i++)
+    {
+        if (att.name.compare(attList.at(i).name) == 0)
+        {
+            att.length = attList.at(i).length;
+            att.type = attList.at(i).type;
+            break;
+        }        
+    }
+
+    RM_ScanIterator rm_scanIter;
+    void *data = nullptr;
+    vector<string> attrNameList;
+    attrNameList.push_back(attributeName);
+    scan(tableName, "", NO_OP, data, attrNameList, rm_scanIter);
+    RID rid;
+    void *page = malloc(PAGE_SIZE);
+    if (page == nullptr)
+    {
+        return -1;
+    }
+
+    while (rm_scanIter.getNextTuple(rid, page) != -1)
+    {
+        _im->insertEntry(ixfh, att, page, rid);
+    }
+
+    return 0;
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
-    return -1;
+    if (_im->destroyFile(tableName + "_" + attributeName + ".t") != 0)
+    {
+        return -1;
+    }
+    
+    if (_rm->deleteCatalog() != 0)
+    {
+        return -1;
+    }
+    return 0;
 }
 
 RC RelationManager::indexScan(const string &tableName,
