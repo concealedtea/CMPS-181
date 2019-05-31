@@ -940,5 +940,37 @@ RC RelationManager::indexScan(const string &tableName,
                               bool highKeyInclusive,
                               RM_IndexScanIterator &rm_IndexScanIterator)
 {
-    return -1;
+
+    IXFileHandle ixfh;
+    string fn = tableName + "_" + attributeName + ".t";
+    _im->openFile(fn, ixfh);
+
+    Attribute att;
+    att.name = attributeName;
+    vector<Attribute> attrList;
+    getAttributes(tableName, attrList);
+
+    for (unsigned i = 0; i < attrList.size(); i++)
+    {
+        if (att.name.compare(attrList.at(i).name) == 0)
+        {
+            att.length = attrList.at(i).length;
+            att.type = attrList.at(i).type;
+        }
+    }
+
+    return _im->scan(ixfh, att, lowKey, highKey, lowKeyInclusive,
+                     highKeyInclusive, rm_IndexScanIterator.ixScanIter);
+
+    return 0;
+}
+
+RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key)
+{
+    return ixScanIter.getNextEntry(rid, key);
+}
+
+RC RM_IndexScanIterator::close()
+{
+    return ixScanIter.close();
 }

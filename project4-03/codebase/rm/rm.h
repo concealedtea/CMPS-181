@@ -76,8 +76,8 @@ public:
     ~RM_IndexScanIterator() {};     // Destructor
     
     // "key" follows the same format as in IndexManager::insertEntry()
-    RC getNextEntry(RID &rid, void *key) {return RM_EOF;};      // Get next matching entry
-    RC close() {return -1;};                         // Terminate index scan
+    RC getNextEntry(RID &rid, void *key);      // Get next matching entry
+    RC close();                         // Terminate index scan
     IX_ScanIterator ixScanIter;
 };
 
