@@ -1,6 +1,7 @@
 
 #include "qe.h"
 #include <cmath>
+#include <cstring>
 
 int Iterator::getValue(const string &name, const vector<Attribute> &attrs, const void* data, void* value) {
     int nullIndicatorSize = getNullIndicatorSize(attrs.size());
