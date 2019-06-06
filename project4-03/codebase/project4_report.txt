@@ -7,7 +7,7 @@ Team number (e.g., 01) : 03
 
 2. Catalog information about Index
 - Show your catalog information about an index (table, column, etc.). 
-
+table-id (int: 4) |  column-name (varchar: 50)
 - Create catalog now sets up the indexes table with the above schema.
 - Delete catalog now deletes the indexes table.
 - Delete table now deletes the indexes from that table.
