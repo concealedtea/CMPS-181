@@ -248,23 +248,16 @@ class IX_ScanIterator {
         // Terminate index scan
         RC close();
 
-        friend class IndexManager;
-        friend class RelationManager;
-        friend class RM_IndexScanIterator;
-
-    private:
         IXFileHandle *fileHandle;
+        RC initialize(IXFileHandle &, Attribute, const void*, const void*, bool, bool);
+    private:
         Attribute attr;
         const void *lowKey;
         const void *highKey;
         bool lowKeyInclusive;
         bool highKeyInclusive;
-
-
         void *page;
         int slotNum;
-
-        RC initialize(IXFileHandle &, Attribute, const void*, const void*, bool, bool);
 };
 
 #endif
