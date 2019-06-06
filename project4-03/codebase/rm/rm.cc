@@ -1303,6 +1303,7 @@ RC RelationManager::updateIndexes(const string& tableName,
     for (auto& index: indexes) 
     {
         rc = getValue(get<TupleColumn>(index), recordDescriptor, data, value); 
+
         if (rc <= 0) 
         {
             continue;

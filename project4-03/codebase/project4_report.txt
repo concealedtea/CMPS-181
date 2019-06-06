@@ -1,15 +1,16 @@
 1. Basic information
-Team number (e.g., 01) : 03
+Team number (e.g., 01) : 03 
 #1 Student ID : 1450874
 #1 Student Name : Matthew Tan
 #2 Student ID : 1509070
 #2 Student Name : Hon Yu Ho
-#3 Student ID : 
-#3 Student Name : 
-
 
 2. Catalog information about Index
-- Show what catalog information you store for an index. 
+- Show your catalog information about an index (table, column, etc.). 
+
+- Create catalog now sets up the indexes table with the above schema.
+- Delete catalog now deletes the indexes table.
+- Delete table now deletes the indexes from that table.
 
 
 3. Index Nested Loop Join
@@ -17,7 +18,6 @@ Team number (e.g., 01) : 03
 For each tuple from the outer (leftIn) relation, will extract the value used for condition and do:
 inner->setIterator(value, value, true, true)
 To get the matching tuples from the inner (rightIn) relation.
-
 
 4. Implementation Detail
 - Have you added your own source file (.cc or .h)?
@@ -32,4 +32,3 @@ Project: For each tuple, extract the desired values and use them to create the r
 
 5. Other (optional)
 - Freely use this section to tell us about things that are related to the project 4, but not related to the other sections (optional)
-
